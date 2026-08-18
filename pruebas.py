@@ -152,45 +152,60 @@ bloque("Comandos inofensivos: debe PASAR", [
     "gh pr list", "git log --oneline",
 ], comando, False)
 
-print("\n=== Memoria: por defecto pregunta UNA vez por zona ===")
-mismo = "mem-test"
-ARCHIVO = "supabase/migrations/0007.sql"
-antes = archivo(ARCHIVO, mismo)
-correr({"hook_event_name": "PostToolUse", "tool_name": "Edit", "session_id": mismo,
-        "tool_input": {"file_path": ARCHIVO}})
-mismo_archivo = archivo(ARCHIVO, mismo)
-otro_archivo = archivo("supabase/migrations/0008.sql", mismo)
-otra = archivo(".env", mismo)
+print("\n=== Una sola aprobación por pedido ===")
+S = "un-pedido"
 
-est = "mem-estricto"
-archivo(ARCHIVO, est, "estricto")
-correr({"hook_event_name": "PostToolUse", "tool_name": "Edit", "session_id": est,
-        "tool_input": {"file_path": ARCHIVO}}, "estricto")
-estricto_otro = archivo("supabase/migrations/0008.sql", est, "estricto")
+
+def uso(entrada):
+    """Simula que la herramienta se ejecutó tras aprobarse."""
+    correr({"hook_event_name": "PostToolUse", "tool_name": "Edit",
+            "session_id": S, "tool_input": {"file_path": entrada}})
+
+
+primera = archivo("supabase/migrations/0007.sql", S)
+uso("supabase/migrations/0007.sql")
+mismo_archivo = archivo("supabase/migrations/0007.sql", S)
+otro_archivo = archivo("supabase/migrations/0008.sql", S)
+otra_zona = archivo(".env", S)
+otra_zona2 = archivo("src/app/api/leads/route.ts", S)
+borrar_igual = comando("rm -rf src", S)
+
+# La bitácora se lee ANTES del próximo mensaje: sirve para el informe final.
+RUTA_ESTADO = os.path.join(tempfile.gettempdir(), "woob-guardrail-un-pedido.json")
+try:
+    BITACORA = json.load(open(RUTA_ESTADO, encoding="utf-8")).get("bitacora", [])
+except Exception:
+    BITACORA = []
+
+# Mensaje nuevo de la persona: la aprobación anterior deja de valer.
+correr({"hook_event_name": "UserPromptSubmit", "session_id": S, "tool_input": {}})
+tras_nuevo_pedido = archivo("supabase/migrations/0009.sql", S)
 
 for desc, val, esperado in [
-    ("avisa la primera vez", antes is not None, True),
-    ("no repite por el mismo archivo", mismo_archivo is None, True),
-    ("tampoco por otro archivo de la misma zona", otro_archivo is None, True),
-    ("otra zona sigue avisando", otra is not None, True),
-    ("en estricto sí repite por cada archivo", estricto_otro is not None, True),
+    ("pide aprobación la primera vez", primera is not None, True),
+    ("después no vuelve a preguntar por el mismo archivo", mismo_archivo is None, True),
+    ("ni por otro archivo de la misma zona", otro_archivo is None, True),
+    ("ni por OTRA zona distinta", otra_zona is None, True),
+    ("ni por el backend", otra_zona2 is None, True),
+    ("pero borrar sigue prohibido igual", borrar_igual and borrar_igual[0] == "deny", True),
+    ("con un mensaje nuevo, vuelve a pedir aprobación", tras_nuevo_pedido is not None, True),
 ]:
     ok = val == esperado
     if not ok:
-        FALLOS.append(f"memoria: {desc}")
+        FALLOS.append(f"aprobación: {desc}")
     print(f"  {'ok ' if ok else 'MAL'} {desc}")
 
-print("\n=== Zonas que nunca se recuerdan ===")
-for zona, ruta in [("secretos", ".env"), ("guardrail", ".claude/settings.json")]:
-    ses = f"nunca-{zona}"
-    archivo(ruta, ses)
-    correr({"hook_event_name": "PostToolUse", "tool_name": "Edit", "session_id": ses,
-            "tool_input": {"file_path": ruta}})
-    r = archivo(ruta, ses)
-    ok = r is not None
-    if not ok:
-        FALLOS.append(f"{zona} no debería recordarse")
-    print(f"  {'ok ' if ok else 'MAL'} {zona}: vuelve a preguntar aunque ya aceptaron")
+print("\n=== Bitácora para el informe final ===")
+ok = any(b["que"].endswith("0007.sql") for b in BITACORA)
+if not ok:
+    FALLOS.append("bitácora: no quedó registro de lo tocado")
+print(f"  {'ok ' if ok else 'MAL'} queda registro de lo que se tocó: "
+      f"{[b['que'] for b in BITACORA] or 'vacío'}")
+
+limpio = os.path.exists(RUTA_ESTADO)
+if limpio:
+    FALLOS.append("bitácora: no se limpió con el mensaje nuevo")
+print(f"  {'ok ' if not limpio else 'MAL'} se limpia con el mensaje siguiente")
 
 print()
 if FALLOS:

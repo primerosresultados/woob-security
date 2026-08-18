@@ -67,47 +67,81 @@ Está prohibido:
 Ser pesado (Regla 1) y bloquear no son lo mismo. Avisas todas las veces que
 haga falta; impedir, solo al borrar.
 
-## Regla 1 — Avisa poco, pero avisa bien
+## Regla 1 — Digo, apruebas una vez, hago, cuento
 
-Preguntar de más y preguntar de menos fallan igual: si el aviso sale a cada
-rato, la persona lo acepta sin leer y es como si no existiera. **Un aviso que
-se lee vale más que diez que se saltan.**
+**No preguntes paso a paso.** Preguntar en cada archivo hace que la persona
+acepte sin leer, y ahí el aviso deja de existir. El trato es otro: **una sola
+aprobación por pedido**, y a cambio, antes y después, información completa.
 
-**Una vez por zona, no una por archivo.** Si ya aceptaron tocar dónde se
-guarda la información de los clientes, no vuelvas a preguntar por el siguiente
-archivo de esa misma zona en la conversación. Ya decidieron.
+Son cuatro momentos, en este orden:
 
-Solo se pregunta de nuevo, siempre, en dos casos: **las llaves de acceso** y
-**los avisos de seguridad mismos**. Ahí cada vez es una decisión nueva.
+### 1. Antes de tocar nada: di lo que vas a hacer
 
-**Avisa antes de empezar, no cuando ya estás editando.** Apenas entiendas el
-pedido, si alguna parte va a salir de la zona segura, dilo **antes de escribir
-una sola línea**. No investigues media hora y avises al final. Y si el trabajo
-toca tres zonas, avisa las tres juntas de una vez — no una por una a medida que
-avanzas.
+Apenas entiendas el pedido, **antes de escribir una sola línea**, revisa el
+trabajo completo y presenta el plan. No investigues media hora y avises al
+final; no avances "un poco" para ver qué pasa.
+
+El plan lleva tres cosas, todo en lenguaje común:
+
+1. **Qué vas a hacer**, en pasos, con los archivos concretos.
+2. **Qué de eso sale de la zona segura** y por qué es delicado.
+3. **Qué puede salir mal**, y cómo se vuelve atrás si sale mal.
+
+Si el trabajo toca cinco zonas, van las cinco **en el mismo mensaje**. Nunca
+una por una a medida que avanzas.
+
+### 2. Una sola aprobación, que cubre todo el pedido
+
+Una sola `AskUserQuestion`, al final del plan, con estas dos opciones:
+
+- **"Dale, asumo la responsabilidad"** → haces **todo el plan completo**, de
+  principio a fin, **sin volver a interrumpir**.
+- **"Mejor se lo pido al Equipo de Woob"** → no tocas nada de lo delicado.
+  Déjale el pedido escrito y listo para copiar. Si parte del trabajo sí era
+  zona segura, hazla igual y dile qué quedó pendiente.
+
+Y dilo explícitamente al pedirla: *"esta aprobación cubre todo este pedido; si
+me dices que sí, sigo hasta el final sin interrumpirte"*.
+
+### 3. Trabaja sin molestar
+
+Ya aprobaron. **No vuelvas a preguntar, no recuerdes el riesgo a mitad de
+camino, no cierres cada mensaje con una advertencia.** Trabaja.
+
+Solo hay dos razones para frenar y volver a hablar:
+
+- **Aparece algo que no estaba en el plan** y es más grave que lo aprobado
+  (por ejemplo: ibas a cambiar un texto y resulta que hay que tocar las llaves
+  de acceso). Ahí dilo y pide una aprobación nueva, corta.
+- **Hay que borrar algo.** Ver Regla 0: eso no se aprueba nunca.
+
+### 4. Al terminar: cuenta lo que pasó
+
+Cierra siempre con el informe. También en lenguaje común, y corto:
+
+> **Listo. Esto es lo que cambié:**
+>
+> - `prisma/schema.prisma` — agregué el campo "teléfono" a los clientes.
+> - `src/app/api/leads/route.ts` — ahora el formulario guarda ese teléfono.
+>
+> **Qué conviene revisar:** entra a la ficha de un cliente y confirma que el
+> teléfono se guarda y se ve bien.
+>
+> **Si algo sale mal:** se deshace volviendo a la versión anterior, no hace
+> falta tocar nada a mano.
+>
+> **Ojo:** esto cambia dónde se guarda la información de los clientes.
+> Conviene avisarle al Equipo de Woob antes de que salga al sitio en vivo.
+
+Si algo del plan **no** se pudo hacer, dilo ahí mismo y por qué. Un informe que
+omite lo que falló es peor que no informar.
+
+### Y la trampa de siempre
 
 **Nunca escondas un cambio sensible adentro de otro.** Si te piden mover un
-botón y para eso hay que tocar el motor de atrás, **para y avisa**. No lo metas
-en el mismo paquete como si fuera parte del trabajo de la pantalla. Esa es la
-forma más común de que se cuele algo — y es la razón de ser de todo esto.
-
-**Preséntate al principio, en dos líneas.** La primera vez que te pidan un
-cambio, antes de trabajar:
-
-> Puedo trabajar libre en pantallas, colores, textos, imágenes, pruebas y
-> documentación. El resto te lo consulto antes, porque este proyecto está
-> funcionando con clientes reales.
-
-**Deja la cuenta al final.** Cuando termines, si aceptaron algo fuera de la
-zona segura, cierra con la lista:
-
-> En esta conversación aceptaste cambios en: `prisma/schema.prisma`,
-> `src/app/api/leads/route.ts` y `.env.local`. Conviene avisarle al Equipo de
-> Woob antes de que esto salga a producción.
-
-**Lo que NO tienes que hacer:** repetir el aviso, pedir confirmación dos veces
-por lo mismo, recordarles el riesgo mientras trabajas, o cerrar cada mensaje
-con una advertencia. Avisaste, aceptaron, punto.
+botón y para eso hay que tocar el motor de atrás, eso va en el plan, en letra
+grande. Meterlo callado en el mismo paquete es la forma más común de que se
+cuele algo — y es la razón de ser de todo esto.
 
 ## Regla 2 — Habla en cristiano, cero técnico
 
@@ -240,50 +274,58 @@ Avisa igual si el cambio mete:
   `WHERE`) → *"esto borra información de verdad"*.
 - Una conexión directa a la base de datos desde una pantalla.
 
-## Cómo advertir
-
-Usa `AskUserQuestion`, para que sea una decisión explícita y no un párrafo que
-se pueda pasar por alto. Antes de la pregunta, escribe el aviso así:
+## El plan, con formato
 
 ```
-⚠️  Fuera de la zona segura
+Esto es lo que voy a hacer:
 
-Mejor solicita este cambio al Equipo de Woob, porque estas tocando: {zona en simple} ({archivo o comando}).
+  1. {paso, en simple} — {archivo}
+  2. {paso, en simple} — {archivo}
+
+De esto, sale de la zona segura:
+
+  • {zona en simple} ({archivo})
+  • {zona en simple} ({archivo})
 
 Qué puede salir mal:
-  • {consecuencia concreta, en una línea, sin jerga}
-  • {segunda consecuencia, si aplica}
+  • {consecuencia concreta, sin jerga}
+  • {segunda consecuencia}
 
-Contacto: Equipo de Woob.
+Cómo se vuelve atrás: {en una línea}
 ```
 
-Con estas dos opciones exactas:
-
-- **"Pedirlo al Equipo de Woob"** → no tocas nada. Déjale escrito el pedido
-  listo para copiar y pegar, también en simple: qué quiere que cambie y por qué.
-- **"Sigo, asumo la responsabilidad"** → haces el cambio completo, sin
-  restricciones y sin volver a preguntar por ese mismo archivo.
+Y enseguida la aprobación única.
 
 ### Ejemplo de cómo NO hacerlo
 
 > Estás modificando el schema de Prisma, lo que implica una migración
 > destructiva sobre la tabla `leads`. Esto puede romper el contrato de la API
-> y requerir un redeploy.
+> y requerir un redeploy. ¿Confirmas?
 
-Nadie fuera del equipo entiende eso. Nadie lo lee. Todos lo aceptan.
+Nadie fuera del equipo entiende eso. Nadie lo lee. Todos lo aceptan. Y encima
+llega cuando ya estabas editando.
 
 ### Ejemplo de cómo sí
 
-> ⚠️  Fuera de la zona segura
+> Esto es lo que voy a hacer:
 >
-> Mejor solicita este cambio al Equipo de Woob, porque estas tocando: cómo está
-> organizada la información de los clientes (`prisma/schema.prisma`).
+>   1. Agregar el campo "teléfono" a los clientes — `prisma/schema.prisma`
+>   2. Guardar ese teléfono cuando alguien manda el formulario — `src/app/api/leads/route.ts`
+>   3. Mostrarlo en la ficha del cliente — `src/components/FichaCliente.tsx`
+>
+> De esto, sale de la zona segura:
+>
+>   • cómo está organizada la información de los clientes (`prisma/schema.prisma`)
+>   • el motor que hace funcionar todo por detrás (`src/app/api/leads/route.ts`)
 >
 > Qué puede salir mal:
 >   • se puede perder información de clientes que ya está guardada, sin poder recuperarla
 >   • pantallas que hoy funcionan pueden dejar de cargar, y no te vas a enterar hasta que un cliente reclame
 >
-> Contacto: Equipo de Woob.
+> Cómo se vuelve atrás: volviendo a la versión anterior del proyecto, sin tocar nada a mano.
+>
+> **Esta aprobación cubre todo el pedido: si me dices que sí, sigo hasta el
+> final sin interrumpirte, y al terminar te cuento qué cambié.**
 
 ## Cuando hay dos zonas a la vez
 
@@ -292,11 +334,9 @@ información de clientes → quién puede entrar → dinero → lo que mantiene 
 sitio en línea → el motor de atrás → organización de la información → piezas
 del proyecto → zona desconocida.
 
-## Después de que aceptan
+## Después de que aprueban
 
-1. Haz el cambio como lo pidieron, completo.
-2. Al terminar, en una o dos líneas y **también en simple**: qué cambiaste, qué
-   conviene revisar, y cómo volver atrás si sale mal.
-3. Si el cambio necesita un paso extra sobre el sitio en vivo, dilo
-   explícitamente en vez de hacerlo por tu cuenta.
-4. Súmalo a la cuenta de la Regla 1, para cerrarla al final.
+1. Haz **todo el plan**, completo, sin interrumpir.
+2. Cierra con el informe de la Regla 1, punto 4.
+3. Si el cambio necesita un paso extra sobre el sitio en vivo, dilo en el
+   informe en vez de hacerlo por tu cuenta.

@@ -10,11 +10,15 @@ lo desconocido se trata como riesgoso, no como inofensivo.
 NO bloquea nunca. Devuelve permissionDecision="ask": Claude Code muestra la
 advertencia y pide confirmación. Si la persona acepta, el cambio se hace igual.
 
+Una sola aprobación por pedido. No se pregunta paso a paso: la primera vez que
+el trabajo sale de la zona segura se pide una aprobación que cubre todo lo que
+venga después, hasta el próximo mensaje de la persona.
+
 Eventos:
-  PreToolUse   -> detecta y pide confirmación.
-  PostToolUse  -> la herramienta corrió, o sea que aceptaron esa zona:
-                  se recuerda para no repetir el aviso toda la sesión.
-                  (Las zonas de SIEMPRE_PREGUNTAR nunca se recuerdan.)
+  UserPromptSubmit -> mensaje nuevo: se borra la aprobación anterior.
+  PreToolUse       -> si ya hay aprobación en este pedido, pasa callado.
+                      Si no, pide UNA aprobación para todo el trabajo.
+  PostToolUse      -> anota qué se tocó, para el informe final.
 """
 
 import json
@@ -25,29 +29,24 @@ import tempfile
 
 CONTACTO = "Equipo de Woob"
 
-# "equilibrado" (por defecto): protege los datos sin volverse insoportable.
-#   - Borrar sigue prohibido, siempre.
-#   - Base de datos, llaves, permisos, dinero y herramientas externas: avisan.
-#   - Pregunta UNA vez por zona en la sesión, no una vez por archivo.
-#   - Los comandos que no reconoce pasan (el ruido no valía la pena).
-# "estricto": además pregunta por cada archivo y avisa en todo comando que no
-#   sea claramente de solo lectura.
-# "relajado": como equilibrado, pero las herramientas externas que escriben y
-#   los nombres sospechosos en carpetas seguras dejan de avisar.
+# En los tres niveles: una sola aprobación por pedido, y borrar prohibido.
+# Lo que cambia es qué dispara esa aprobación.
+#   "equilibrado" (por defecto): base de datos, llaves, permisos, dinero,
+#     herramientas externas que escriben, y archivos fuera de la zona segura.
+#     Los comandos que no reconoce pasan.
+#   "estricto": además, cualquier comando que no sea claramente de solo lectura.
+#   "relajado": deja pasar las herramientas externas que escriben y los nombres
+#     sospechosos dentro de carpetas seguras.
 NIVEL = os.environ.get("WOOB_GUARDRAIL_NIVEL", "equilibrado").strip().lower()
 if NIVEL in ("normal", "relajado"):
     NIVEL = "relajado"
 elif NIVEL != "estricto":
     NIVEL = "equilibrado"
 
-ESTRICTO = NIVEL == "estricto"          # pregunta por archivo, avisa en comandos raros
+ESTRICTO = NIVEL == "estricto"          # también avisa en comandos desconocidos
 PROTEGE_DATOS = NIVEL != "relajado"     # herramientas externas y nombres sospechosos
 
 # Zonas cuya aceptación NO se recuerda: cada vez vuelve a preguntar.
-# Zonas que vuelven a preguntar aunque ya hayan aceptado antes. Corta: si todo
-# pregunta siempre, nadie lee ninguna.
-SIEMPRE_PREGUNTAR = {"guardrail", "secretos"}
-
 # ---------------------------------------------------------------- lista negra
 # Se revisa PRIMERO. Gana sobre la lista blanca: un .md dentro de .claude/
 # sigue siendo sensible aunque los .md sean seguros.
@@ -529,40 +528,52 @@ def revisar_mcp(tool_name, tool_input):
     )
 
 
-def ruta_memoria(session_id):
+def ruta_estado(session_id):
     nombre = re.sub(r"[^A-Za-z0-9_.-]", "_", session_id or "sin-sesion")
     return os.path.join(tempfile.gettempdir(), f"woob-guardrail-{nombre}.json")
 
 
-def aceptadas(session_id):
+def estado(session_id):
     try:
-        with open(ruta_memoria(session_id), "r", encoding="utf-8") as f:
+        with open(ruta_estado(session_id), "r", encoding="utf-8") as f:
             datos = json.load(f)
-            return set(datos) if isinstance(datos, list) else set()
+        if isinstance(datos, dict):
+            return datos
     except Exception:
-        return set()
+        pass
+    return {"aprobado": False, "bitacora": []}
 
 
-def recordar(session_id, clave, memo=None):
-    if clave in SIEMPRE_PREGUNTAR:
-        return
-    memo = memo or clave
-    ya = aceptadas(session_id)
-    if memo in ya:
-        return
-    ya.add(memo)
+def guardar_estado(session_id, datos):
     try:
-        with open(ruta_memoria(session_id), "w", encoding="utf-8") as f:
-            json.dump(sorted(ya), f)
+        with open(ruta_estado(session_id), "w", encoding="utf-8") as f:
+            json.dump(datos, f, ensure_ascii=False)
     except Exception:
         pass
 
 
+def nuevo_pedido(session_id):
+    """Mensaje nuevo de la persona: la aprobación anterior ya no vale."""
+    try:
+        os.remove(ruta_estado(session_id))
+    except OSError:
+        pass
+
+
+def anotar(session_id, clave, objetivo):
+    datos = estado(session_id)
+    datos["aprobado"] = True
+    entrada = {"zona": clave, "que": objetivo}
+    if entrada not in datos["bitacora"]:
+        datos["bitacora"].append(entrada)
+    guardar_estado(session_id, datos)
+
+
 def mensaje(etiqueta, objetivo, riesgos):
     lineas = [
-        "⚠️  Fuera de la zona segura",
+        "⚠️  Este trabajo sale de la zona segura",
         "",
-        f"Mejor solicita este cambio al {CONTACTO}, porque estas tocando: "
+        f"Mejor solicítaselo al {CONTACTO}, porque estas tocando: "
         f"{etiqueta} ({objetivo}).",
         "",
         "Qué puede salir mal:",
@@ -570,9 +581,12 @@ def mensaje(etiqueta, objetivo, riesgos):
     lineas += [f"  • {r}" for r in riesgos]
     lineas += [
         "",
-        f"Si prefieres ir a la segura, pídeselo al {CONTACTO} y no toques nada.",
-        "Si aceptas la responsabilidad de este cambio, apruébalo y sigue: "
-        "nadie te está bloqueando, la decisión es tuya.",
+        "Esta aprobación cubre TODO este pedido: si dices que sí, sigo hasta el",
+        "final sin volver a interrumpirte, y al terminar te digo exactamente qué",
+        "cambié y qué conviene revisar.",
+        "",
+        f"Si prefieres ir a la segura, pídeselo al {CONTACTO} y no toco nada.",
+        "Si asumes la responsabilidad, apruébalo: la decisión es tuya.",
     ]
     return "\n".join(lineas)
 
@@ -604,6 +618,11 @@ def main():
     tool_name = datos.get("tool_name", "") or ""
     tool_input = datos.get("tool_input", {}) or {}
     session_id = datos.get("session_id", "")
+
+    # Mensaje nuevo: la aprobación del pedido anterior deja de valer.
+    if evento == "UserPromptSubmit":
+        nuevo_pedido(session_id)
+        sys.exit(0)
 
     if tool_name == "Bash":
         hallazgo = revisar_comando(tool_input.get("command", "") or "")
@@ -644,15 +663,12 @@ def main():
         )
         sys.exit(0)
 
-    # En estricto, aceptar un archivo NO abre toda su zona: la memoria se
-    # guarda por archivo o comando concreto.
-    memo = f"{clave}|{objetivo}" if ESTRICTO else clave
-
     if evento == "PostToolUse":
-        recordar(session_id, clave, memo)
+        anotar(session_id, clave, objetivo)
         sys.exit(0)
 
-    if memo in aceptadas(session_id):
+    # Ya aprobaron este pedido: se trabaja sin interrumpir.
+    if estado(session_id).get("aprobado"):
         sys.exit(0)
 
     print(

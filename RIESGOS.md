@@ -69,14 +69,34 @@ un permiso del sistema. Todo lo de arriba se arregla en el servidor, no acá.
   Si pasa: ajustar `SEGURA_CARPETA` a las convenciones del proyecto antes de
   bajar el nivel.
 
-- **El precio de calibrarlo así.** Una vez que aceptan una zona, el resto de
-  esa zona pasa callado en la conversación. Es la decisión consciente: vale más
-  un aviso que se lee que diez que se saltan. Las llaves de acceso y la
-  configuración del guardrail son la excepción y preguntan siempre.
+- **Una aprobación abre todo el pedido. Este es el trade-off más grande del
+  diseño.** Si la persona aprueba un plan que decía "voy a tocar el schema" y
+  después el trabajo termina tocando también las llaves de acceso, el hook ya
+  no interrumpe: la aprobación cubre lo que venga hasta el próximo mensaje.
+
+  La contención es la skill, que tiene instrucción explícita de frenar y pedir
+  una aprobación nueva si aparece algo más grave que lo aprobado. Pero eso es
+  una instrucción al modelo, no un candado: **si el plan estaba mal hecho, la
+  aprobación cubre de más.**
+
+  La apuesta es que un plan leído y una aprobación consciente valen más que
+  veinte confirmaciones salteadas. Si no te convence, `estricto` no cambia
+  esto — la aprobación sigue siendo una por pedido; lo que cambia es qué la
+  dispara. Para volver a confirmar paso a paso hay que sacar el chequeo de
+  `estado(...).get("aprobado")` en el hook.
+
+- **La aprobación se limpia con el evento `UserPromptSubmit`.** Si ese hook no
+  quedó instalado (settings incompleto), la aprobación **no caduca nunca** y
+  dura toda la sesión. Verificar que `UserPromptSubmit` esté en el
+  `settings.json` del proyecto.
 
 - **Los comandos desconocidos vuelven a pasar** en el nivel por defecto.
   `docker compose up`, `ssh servidor`, `npx tsx script.ts` no avisan. Si te
   importa cubrir eso, `WOOB_GUARDRAIL_NIVEL=estricto`.
+
+- **El informe final lo escribe el modelo, no el hook.** El hook deja anotado
+  qué se tocó (en el archivo de estado en `/tmp`), pero quien redacta el cierre
+  es la skill. Si el modelo se olvida de cerrar, no hay nada que lo fuerce.
 - **Falsos negativos silenciosos.** Cuando el guardrail no avisa, no dice
   "revisé y está bien". Dice "no lo reconocí". No son lo mismo.
 - **Advertir no es impedir.** Por diseño. La persona puede aceptar todo. El

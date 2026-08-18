@@ -6,9 +6,9 @@
 Guardrail para cuando dejas que alguien externo edite el código de un proyecto
 en producción.
 
-Avisa antes de que toque algo fuera de la zona segura, le explica qué puede
-salir mal **en palabras que cualquiera entiende**, y **lo deja seguir si acepta
-la responsabilidad**.
+No pregunta paso a paso. **Explica el plan, pide una sola aprobación por
+pedido, trabaja sin interrumpir, y al terminar cuenta qué pasó** — todo en
+palabras que cualquiera entiende.
 
 Con una sola excepción: **borrar está prohibido y no se puede aceptar.**
 
@@ -206,27 +206,52 @@ externa cuyo nombre sea de eliminar.
 La skill acompaña: en vez de solo negarse, propone la alternativa que no borra
 (renombrar, comentar, marcar como inactivo, dejar de mostrarlo).
 
-## Cuánto pregunta
+## Cómo funciona la conversación
 
 Preguntar de más y preguntar de menos fallan igual: si el aviso sale a cada
-rato, se acepta sin leer y es como si no existiera. La calibración por defecto:
+rato, se acepta sin leer y es como si no existiera. Por eso el trato es otro —
+**una sola aprobación, a cambio de información completa antes y después**:
 
-- **Una vez por zona, no una por archivo.** Aceptar un cambio en la base de
-  datos no hace que vuelva a preguntar por el siguiente archivo de la misma
-  zona en esa conversación.
-- **Salvo dos:** las llaves de acceso y los avisos de seguridad mismos
-  preguntan siempre.
-- **Los comandos que no reconoce pasan.** Avisa solo en los que hacen daño de
-  verdad: migraciones, publicaciones, instalar paquetes, escrituras indirectas
-  sobre archivos sensibles, y atajos que no se ven por dentro (`npm run <algo>`,
-  `make`, `.sh`, `curl | bash`, `python3 -c`).
-- **Avisa antes de empezar**, no a mitad de camino, y junta todas las zonas del
-  trabajo en un solo aviso.
-- **No esconde un cambio sensible adentro de otro.** Si mover un botón obliga a
-  tocar el motor de atrás, para y avisa. Es la forma más común de que se cuele
-  algo.
-- **Deja la cuenta al final:** la lista de lo que se aceptó fuera de la zona
-  segura, para pasársela a Woob.
+**1. Antes de tocar nada, dice el plan.** Qué va a hacer paso a paso, qué de
+eso sale de la zona segura, qué puede salir mal, y cómo se vuelve atrás. Todo
+junto, en un mensaje.
+
+**2. Una aprobación, que cubre todo el pedido.** No vuelve a preguntar por cada
+archivo. La aprobación vale hasta el próximo mensaje de la persona.
+
+**3. Trabaja sin molestar.** Nada de recordar el riesgo a mitad de camino ni
+cerrar cada mensaje con una advertencia.
+
+Solo frena si aparece algo más grave que no estaba en el plan, o si hay que
+borrar (eso no se aprueba nunca).
+
+**4. Al terminar, cuenta lo que pasó.** Qué cambió, qué conviene revisar, cómo
+volver atrás, y qué del plan no se pudo hacer.
+
+```
+Esto es lo que voy a hacer:
+
+  1. Agregar el campo "teléfono" a los clientes — prisma/schema.prisma
+  2. Guardar ese teléfono al mandar el formulario — src/app/api/leads/route.ts
+  3. Mostrarlo en la ficha del cliente — src/components/FichaCliente.tsx
+
+De esto, sale de la zona segura:
+
+  • cómo está organizada la información de los clientes (prisma/schema.prisma)
+  • el motor que hace funcionar todo por detrás (src/app/api/leads/route.ts)
+
+Qué puede salir mal:
+  • se puede perder información de clientes que ya está guardada
+  • pantallas que hoy funcionan pueden dejar de cargar
+
+Cómo se vuelve atrás: volviendo a la versión anterior, sin tocar nada a mano.
+
+Esta aprobación cubre todo el pedido: si me dices que sí, sigo hasta el
+final sin interrumpirte, y al terminar te cuento qué cambié.
+```
+
+El hook es el respaldo: si la skill no hizo el plan, él fuerza esa aprobación
+única igual, y después se calla hasta el próximo mensaje.
 
 ## Lo que protege siempre, en cualquier nivel
 
