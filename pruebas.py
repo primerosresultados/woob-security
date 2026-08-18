@@ -109,6 +109,13 @@ bloque("Comandos peligrosos: debe AVISAR", [
     "cat <<EOF > .env", "supabase db reset", "terraform apply",
 ], comando, True)
 
+bloque("Comandos desconocidos: debe AVISAR (modo estricto)", [
+    "npx tsx borrar-todo.ts", "docker compose up", "ssh servidor 'reiniciar'",
+    "gh workflow run deploy", "supabase functions deploy",
+    "cat x.txt && npm run migrate", "ls && npx algo-raro",
+    "git commit -am x && git push", "chmod 777 .",
+], comando, True)
+
 bloque("Comandos inofensivos: debe PASAR", [
     "ls -la", "git status", "git diff", "npm run dev", "pnpm run build",
     "npm test", "yarn lint", "npm run typecheck", "grep -rn foo src/",
@@ -116,16 +123,19 @@ bloque("Comandos inofensivos: debe PASAR", [
     "gh pr list", "git log --oneline",
 ], comando, False)
 
-print("\n=== Memoria de sesión ===")
+print("\n=== Memoria de sesión (modo estricto) ===")
 mismo = "mem-test"
-antes = archivo("supabase/migrations/0007.sql", mismo)
+ARCHIVO = "supabase/migrations/0007.sql"
+antes = archivo(ARCHIVO, mismo)
 correr({"hook_event_name": "PostToolUse", "tool_name": "Edit", "session_id": mismo,
-        "tool_input": {"file_path": "supabase/migrations/0007.sql"}})
-despues = archivo("supabase/migrations/0008.sql", mismo)
+        "tool_input": {"file_path": ARCHIVO}})
+mismo_archivo = archivo(ARCHIVO, mismo)
+otro_archivo = archivo("supabase/migrations/0008.sql", mismo)
 otra = archivo(".env", mismo)
 for desc, val, esperado in [
     ("avisa la primera vez", antes is not None, True),
-    ("no repite tras aceptar", despues is None, True),
+    ("no repite por el MISMO archivo", mismo_archivo is None, True),
+    ("OTRO archivo de la misma zona sí avisa", otro_archivo is not None, True),
     ("otra zona sigue avisando", otra is not None, True),
 ]:
     ok = val == esperado

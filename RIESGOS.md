@@ -35,15 +35,10 @@ un permiso del sistema. Todo lo de arriba se arregla en el servidor, no acá.
   El aviso dice "por acá se puede escribir cualquier cosa", no más.
 - **Pipes y descargas.** `curl … | bash` avisa. `wget && chmod +x && ejecutar`
   en tres comandos separados, cada uno inocente, no.
-- **Comandos no clasificados pasan.** Si un comando no calza con ningún patrón
-  de escritura ni de peligro, pasa. Es una decisión consciente: avisar en
-  *cada* comando de terminal entrena a la gente a aceptar sin leer, y ahí el
-  guardrail deja de servir para lo que importa. **Este es el trade-off central
-  del diseño.**
-- **MCP.** Se avisa por el nombre de la herramienta (`*_guardar`, `*_eliminar`,
-  `*_execute`…). Un MCP con nombres distintos pasa. Y lo grave: los MCP
-  escriben directo sobre datos de producción, **sin git, sin diff y sin
-  revertir**. Es el vector más peligroso y el peor cubierto.
+- **MCP.** Ahora avisa en toda herramienta externa salvo las que claramente
+  solo consultan (`listar`, `detalle`, `get`, `search`). Sigue siendo el vector
+  más peligroso: escriben directo sobre datos de producción, **sin git, sin
+  diff y sin revertir**. Si un MCP llama "consultar" a algo que escribe, pasa.
 - **Edits que quitan una protección.** Borrar el `WHERE` de un `DELETE` ya
   existente: el `new_string` no contiene "delete from", así que el chequeo de
   contenido no lo ve.
@@ -56,15 +51,21 @@ un permiso del sistema. Todo lo de arriba se arregla en el servidor, no acá.
 
 ## 3. Riesgos del propio diseño
 
-- **La memoria de sesión es gruesa.** Aceptar un cambio de backend abre *todo*
-  el backend por el resto de la sesión. Es a propósito — si no, el aviso sale
-  veinte veces y nadie lo lee — pero es un riesgo real. `destructivo`,
-  `secretos`, `infra`, `guardrail`, `eval` y `mcp` nunca se recuerdan.
-- **Fatiga de alerta.** Es el riesgo más probable de todos. Si el proyecto no
-  usa las convenciones de carpeta de la lista blanca, *todo* avisa, y en
-  quince minutos la persona acepta por reflejo sin leer. Si eso pasa: ajusta
-  `SEGURA_CARPETA` a las convenciones reales del proyecto. Un guardrail que
-  grita siempre es ruido.
+- **Fatiga de alerta. Este es ahora el riesgo número uno**, y es el precio
+  directo de lo agresivo que quedó. En modo estricto avisa por cada archivo y
+  por cada comando que no sea claramente de solo lectura. Si la persona ve
+  cuarenta avisos en media hora, deja de leerlos y acepta por reflejo — y ahí
+  el guardrail vale cero, aunque técnicamente esté "funcionando".
+
+  Dos salidas cuando eso pasa, en este orden:
+  1. Ajustar `SEGURA_CARPETA` a las convenciones reales del proyecto. Si avisa
+     en todo, casi siempre es porque la zona segura no coincide con cómo está
+     ordenado ese repo.
+  2. `WOOB_GUARDRAIL_NIVEL=normal`, que vuelve al comportamiento anterior:
+     los comandos no reconocidos pasan y aceptar una zona la abre entera.
+
+- **La memoria por archivo multiplica los avisos.** Aceptar `0007.sql` ya no
+  autoriza `0008.sql`. Es más seguro y más molesto, en esa proporción exacta.
 - **Falsos negativos silenciosos.** Cuando el guardrail no avisa, no dice
   "revisé y está bien". Dice "no lo reconocí". No son lo mismo.
 - **Advertir no es impedir.** Por diseño. La persona puede aceptar todo. El

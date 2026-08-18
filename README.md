@@ -121,7 +121,7 @@ Dos capas, a propósito redundantes:
 
 | | |
 |---|---|
-| `SKILL.md` | La skill. Le enseña a Claude *cómo* advertir bien, qué riesgo nombrar y — sobre todo — que después de la advertencia haga el trabajo completo, sin sermonear y sin recortarlo. |
+| `SKILL.md` | La skill. Le enseña a Claude *cómo* advertir bien, qué riesgo nombrar, cuándo interrumpir — y que después de la advertencia haga el trabajo completo, sin sermonear y sin recortarlo. |
 | `hooks/guardrail-woob.py` | El hook `PreToolUse`. Intercepta `Edit`, `Write`, `Bash` y herramientas MCP **antes** de que corran y fuerza la confirmación. |
 
 El hook es el candado; garantiza que el aviso salga aunque el modelo se
@@ -173,17 +173,57 @@ el mecanismo.**
 La única excepción es el nombre del archivo o el comando: ese va tal cual,
 porque es lo único que ubica a la persona en dónde está parada.
 
-## Detalles que importan
+## La skill interrumpe a propósito
 
-- **Cuando alguien acepta una zona, no se le vuelve a preguntar por esa zona en
-  la sesión.** Si el aviso sale veinte veces, nadie lo lee, y ahí el guardrail
-  deja de servir.
-- **Salvo las zonas graves.** `destructivo`, `secretos`, `infra`, `guardrail`,
-  `eval` y `mcp` preguntan siempre, aunque ya hayan aceptado antes.
+Un aviso que sale una vez y bajito no le cambia el comportamiento a nadie. Por
+eso la skill está escrita para ser pesada:
+
+- **Se presenta al principio.** Antes del primer cambio dice qué puede tocar
+  libre y qué va a consultar.
+- **Avisa antes de empezar**, no cuando ya está editando. Si el pedido va a
+  salir de la zona segura, lo dice antes de escribir una línea.
+- **No acepta un sí genérico.** "Dale", "hazlo" o "no preguntes más" no son
+  aceptación: tiene que ser una respuesta explícita, por ese archivo. Si le
+  dicen que no pregunte más, explica por qué sigue preguntando y sigue
+  preguntando.
+- **No esconde un cambio sensible adentro de otro.** Si mover un botón obliga a
+  tocar el motor de atrás, para y avisa. Es la forma más común de que se cuele
+  algo.
+- **Deja la cuenta al final:** la lista de todo lo que se aceptó fuera de la
+  zona segura, para pasársela a Woob.
+
+Nada de esto bloquea. Ser pesado e impedir no son lo mismo.
+
+## Modo estricto (por defecto)
+
+- **Los comandos van al revés que los archivos:** avisa salvo que el comando
+  sea claramente de solo lectura (`ls`, `cat`, `grep`, `git status`,
+  `npm run dev`, `npm test`…). Todo lo demás pregunta, incluido lo que no
+  reconoce. Y cada tramo de un comando encadenado cuenta por separado:
+  `cat x && npm run migrate` no pasa por empezar con `cat`.
+- **Aceptar un archivo no abre su zona.** Aceptar `0007.sql` no autoriza
+  `0008.sql`. La memoria es por archivo, no por categoría.
+- **Las herramientas externas (MCP) avisan casi siempre**, salvo las que solo
+  consultan. Son el vector más peligroso: escriben sobre datos reales sin git,
+  sin diff y sin forma de volver atrás.
+- **Nombres sospechosos dentro de carpetas seguras.** `src/ui/config.ts` y
+  `src/components/cliente-db.ts` avisan igual: están en zona segura pero el
+  nombre delata que no son solo pantalla.
 - **El contenido también cuenta.** Un componente deja de ser seguro si le
-  escribes `"use server"`, una API key o un `DROP TABLE`.
-- **Los comandos también.** `npm run migrate`, `make deploy`, `curl | bash`,
-  `python3 -c`, redirecciones a archivos sensibles.
+  escribes `"use server"`, una llave de acceso o un `DROP TABLE`.
+- **Zonas que preguntan siempre**, aunque ya hayan aceptado antes: comandos
+  destructivos, llaves de acceso, lo que mantiene el sitio en línea, los avisos
+  de seguridad mismos, y las herramientas externas.
+
+Si avisa demasiado para tu proyecto, la primera respuesta es ajustar
+`SEGURA_CARPETA` a cómo está ordenado ese repo. La segunda:
+
+```bash
+WOOB_GUARDRAIL_NIVEL=normal   # los comandos desconocidos pasan y aceptar una zona la abre entera
+```
+
+Léelo con cuidado: un guardrail que grita en todo se aprende a ignorar, y ahí
+deja de servir. Ver [RIESGOS.md](RIESGOS.md).
 
 ## Antes de confiar en esto
 

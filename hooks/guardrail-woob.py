@@ -25,6 +25,13 @@ import tempfile
 
 CONTACTO = "Equipo de Woob"
 
+# "estricto" (por defecto): lo que no se reconoce, avisa. Cada archivo y cada
+# comando pregunta por separado.
+# "normal": los comandos no reconocidos pasan y aceptar una zona la abre entera
+# para el resto de la sesión.
+NIVEL = os.environ.get("WOOB_GUARDRAIL_NIVEL", "estricto").strip().lower()
+ESTRICTO = NIVEL != "normal"
+
 # Zonas cuya aceptación NO se recuerda: cada vez vuelve a preguntar.
 SIEMPRE_PREGUNTAR = {"destructivo", "guardrail", "secretos", "infra", "eval", "mcp"}
 
@@ -165,6 +172,15 @@ SEGURA_NOMBRE = re.compile(
 )
 
 SEGURA_SUFIJO = re.compile(r"\.(test|spec|stories|story|mock|fixture)\.[a-z]+$", re.IGNORECASE)
+
+# Un archivo con estos nombres es sospechoso aunque viva en una carpeta segura:
+# `src/ui/config.ts` o `src/components/cliente-db.ts` no son "pantallas".
+NOMBRE_SOSPECHOSO = re.compile(
+    r"(^|/|_|-)(config|configuracion|settings|client|cliente|conexion|connection|"
+    r"db|database|api|admin|token|key|llave|secret|password|clave|env|"
+    r"payment|pago|checkout|upload|email|correo|sms)($|_|-|\.)",
+    re.IGNORECASE,
+)
 
 # ------------------------------------------------------ contenido peligroso
 # Un archivo "seguro" puede volverse sensible por lo que se le escribe adentro.
@@ -325,12 +341,14 @@ def relativizar(ruta):
 
 
 def es_segura(rel):
-    return bool(
-        SEGURA_SUFIJO.search(rel)
-        or SEGURA_NOMBRE.search(rel)
-        or SEGURA_EXTENSION.search(rel)
-        or SEGURA_CARPETA.search(rel)
-    )
+    if SEGURA_SUFIJO.search(rel) or SEGURA_NOMBRE.search(rel):
+        return True
+    if SEGURA_EXTENSION.search(rel):
+        return True
+    if not SEGURA_CARPETA.search(rel):
+        return False
+    # Está en carpeta segura, pero el nombre delata que no es solo pantalla.
+    return not (ESTRICTO and NOMBRE_SOSPECHOSO.search(rel))
 
 
 def revisar_archivo(ruta, contenido=""):
@@ -380,15 +398,43 @@ def revisar_comando(cmd):
             clave, etiqueta, rel, riesgos = hallazgo
             return clave, etiqueta, f"{rel} (por shell)", riesgos
 
-    if COMANDO_SEGURO.match(cmd.strip()):
+    # Cada tramo por separado: "cat x && npm run migrate" no es seguro solo
+    # porque empiece con `cat`.
+    tramos = [t.strip() for t in re.split(r"&&|\|\||;|\||\n", cmd) if t.strip()]
+    if tramos and all(COMANDO_SEGURO.match(t) for t in tramos):
         return None
 
-    return None  # comando no clasificado: se deja pasar, ver RIESGOS.md
+    if not ESTRICTO:
+        return None
+
+    corto = cmd if len(cmd) <= 90 else cmd[:87] + "..."
+    return (
+        "comando",
+        "un comando que no reconocemos",
+        corto,
+        [
+            "no sabemos qué hace, así que no podemos decirte qué puede romper",
+            "si solo lee o muestra cosas, es inofensivo; si escribe, publica o "
+            "borra, no lo es",
+        ],
+    )
+
+
+# Herramientas externas que solo consultan: pasan sin aviso.
+MCP_SOLO_LEE = re.compile(
+    r"(^|_)(get|list|read|search|find|fetch|query|show|view|describe|check|"
+    r"listar|detalle|resumen|buscar|ver|obtener|consultar)($|_)|"
+    r"(_(list|get|detail|search)$)",
+    re.IGNORECASE,
+)
 
 
 def revisar_mcp(tool_name, tool_input):
-    if not re.search(
-        r"(write|create|update|delete|insert|upsert|remove|execute|sql|query|migrat|"
+    corto_nombre = tool_name.split("__")[-1]
+    if MCP_SOLO_LEE.search(corto_nombre):
+        return None
+    if not ESTRICTO and not re.search(
+        r"(write|create|update|delete|insert|upsert|remove|execute|sql|migrat|"
         r"deploy|push|set_|guardar|eliminar|registrar|actualizar|agregar)",
         tool_name,
         re.IGNORECASE,
@@ -420,13 +466,14 @@ def aceptadas(session_id):
         return set()
 
 
-def recordar(session_id, clave):
+def recordar(session_id, clave, memo=None):
     if clave in SIEMPRE_PREGUNTAR:
         return
+    memo = memo or clave
     ya = aceptadas(session_id)
-    if clave in ya:
+    if memo in ya:
         return
-    ya.add(clave)
+    ya.add(memo)
     try:
         with open(ruta_memoria(session_id), "w", encoding="utf-8") as f:
             json.dump(sorted(ya), f)
@@ -474,11 +521,15 @@ def main():
 
     clave, etiqueta, objetivo, riesgos = hallazgo
 
+    # En estricto, aceptar un archivo NO abre toda su zona: la memoria se
+    # guarda por archivo o comando concreto.
+    memo = f"{clave}|{objetivo}" if ESTRICTO else clave
+
     if evento == "PostToolUse":
-        recordar(session_id, clave)
+        recordar(session_id, clave, memo)
         sys.exit(0)
 
-    if clave in aceptadas(session_id):
+    if memo in aceptadas(session_id):
         sys.exit(0)
 
     print(
