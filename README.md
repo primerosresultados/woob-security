@@ -8,7 +8,9 @@ en producción.
 
 Avisa antes de que toque algo fuera de la zona segura, le explica qué puede
 salir mal **en palabras que cualquiera entiende**, y **lo deja seguir si acepta
-la responsabilidad**. No bloquea nunca.
+la responsabilidad**.
+
+Con una sola excepción: **borrar está prohibido y no se puede aceptar.**
 
 ```
 ⚠️  Fuera de la zona segura
@@ -172,6 +174,37 @@ el mecanismo.**
 
 La única excepción es el nombre del archivo o el comando: ese va tal cual,
 porque es lo único que ubica a la persona en dónde está parada.
+
+## Borrar: lo único que se bloquea
+
+Todo lo demás avisa y deja pasar. Las eliminaciones se rechazan de verdad
+(`deny`), sin opción de aceptar:
+
+```
+⛔  Esto no se puede hacer
+
+Borrar está prohibido en este proyecto.
+Estabas por borrar archivos (rm -rf src/components/viejos).
+
+Por qué:
+  • lo que se borra no siempre se puede recuperar
+  • no hay forma de saber desde acá qué más dependía de eso
+
+Esto no se puede aceptar ni saltar: tiene que hacerlo el Equipo de Woob.
+
+Si lo que necesitas es cambiar o reemplazar algo en vez de borrarlo,
+eso sí se puede: pídelo así.
+```
+
+Cubre borrar archivos (`rm`, `git rm`, `git clean`, `find -delete`), borrar
+información (`DROP`, `TRUNCATE`, `DELETE FROM`, `db reset`), borrar cosas del
+sitio en línea (`terraform destroy`, `kubectl delete`, `docker prune`,
+`aws s3 rm`, `vercel remove`, `gh repo delete`), sacar dependencias
+(`npm uninstall`), vaciar un archivo que ya existe, y cualquier herramienta
+externa cuyo nombre sea de eliminar.
+
+La skill acompaña: en vez de solo negarse, propone la alternativa que no borra
+(renombrar, comentar, marcar como inactivo, dejar de mostrarlo).
 
 ## La skill interrumpe a propósito
 

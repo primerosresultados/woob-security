@@ -6,6 +6,12 @@ infalible es peor que no tener guardrail, porque te hace bajar la guardia.
 Esto **reduce accidentes de gente con buena intención**. No detiene a nadie que
 quiera hacer daño, y no reemplaza permisos, backups ni revisión de código.
 
+**Sobre el bloqueo de eliminaciones:** es lo único que se rechaza de verdad, y
+aun así todo lo de la sección 1 lo evita igual. Un bloqueo dentro de Claude
+Code no impide borrar desde la terminal, desde el editor, ni desde el panel de
+Supabase. Lo único que impide borrar de verdad es no tener permiso para
+borrar.
+
 ---
 
 ## 1. Se salta el guardrail entero
@@ -28,6 +34,9 @@ un permiso del sistema. Todo lo de arriba se arregla en el servidor, no acá.
 
 ## 2. Se salta la detección
 
+- **Eliminaciones armadas de forma indirecta.** `F="-rf src"; rm $F` no se
+  detecta. Tampoco un script `.sh` que borra por dentro: se avisa que es un
+  atajo desconocido, pero no se prohíbe.
 - **Comandos armados con variables.** `F=.env; echo x > $F` — el regex ve `$F`,
   no `.env`. Lo mismo con `eval`, `xargs`, rutas construidas.
 - **Intérpretes embebidos.** `python3 -c`, `node -e`, heredocs y `base64 -d`

@@ -213,6 +213,58 @@ CONTENIDO_RIESGOSO = [
     ),
 ]
 
+# ----------------------------------------------------------------- eliminación
+# ÚNICA excepción a "nunca bloquear": borrar está prohibido, no se puede
+# aceptar. Se devuelve "deny", no "ask". Lo pedido explícitamente por Woob.
+BORRADO_COMANDO = [
+    (
+        r"\brm\b|\brmdir\b|\bunlink\b|\bshred\b|\bfind\b[^|]*-delete\b|"
+        r"\bgit\s+(rm\b|clean\s+-[a-z]*f)|\bgit\s+branch\s+-D\b|"
+        r"\bgit\s+push\b[^|]*--delete\b|\btruncate\b|\bdd\s+of=",
+        "borrar archivos",
+    ),
+    (
+        r"\b(drop|truncate)\s+(table|database|schema|column|index|view)\b|"
+        r"\bdelete\s+from\b|\bdrop\s+if\s+exists\b|"
+        r"(prisma|supabase|rails|artisan)\s+.*\b(reset|drop|wipe)\b|"
+        r"\bdb:(drop|reset|purge)\b|\bflushall\b|\bflushdb\b|\bdropdb\b",
+        "borrar información de clientes",
+    ),
+    (
+        r"\bterraform\s+destroy\b|\bkubectl\s+delete\b|"
+        r"\b(docker)\s+(rm|rmi|system\s+prune|volume\s+rm|container\s+prune)\b|"
+        r"\baws\s+s3\s+(rm|rb)\b|\bgcloud\s+.*\bdelete\b|\baz\s+.*\bdelete\b|"
+        r"\b(vercel|netlify|fly|heroku|railway)\s+.*\b(remove|rm|destroy|delete)\b|"
+        r"\bgh\s+(repo|release|secret)\s+delete\b|\bsupabase\s+projects\s+delete\b",
+        "borrar cosas del sitio en línea",
+    ),
+    (
+        r"\b(npm|pnpm|yarn|bun)\s+(uninstall|remove|rm)\b|\bpip\s+uninstall\b|"
+        r"\b(gem|composer|cargo)\s+(uninstall|remove)\b",
+        "sacar piezas que el proyecto necesita",
+    ),
+]
+
+BORRADO_MCP = re.compile(
+    r"(^|_)(delete|remove|destroy|drop|purge|clear|wipe|"
+    r"eliminar|borrar|quitar|limpiar|vaciar)($|_)",
+    re.IGNORECASE,
+)
+
+RIESGO_BORRADO = [
+    "lo que se borra no siempre se puede recuperar",
+    "no hay forma de saber desde acá qué más dependía de eso",
+]
+
+
+def revisar_borrado_comando(cmd):
+    for patron, que in BORRADO_COMANDO:
+        if re.search(patron, cmd, re.IGNORECASE):
+            corto = cmd if len(cmd) <= 90 else cmd[:87] + "..."
+            return "borrado", que, corto, RIESGO_BORRADO
+    return None
+
+
 # ------------------------------------------------------------------- comandos
 ZONAS_COMANDO = [
     (
@@ -351,11 +403,15 @@ def es_segura(rel):
     return not (ESTRICTO and NOMBRE_SOSPECHOSO.search(rel))
 
 
-def revisar_archivo(ruta, contenido=""):
+def revisar_archivo(ruta, contenido="", vaciando=False):
     """(clave, etiqueta, objetivo, riesgos) o None."""
     rel = relativizar(ruta)
     if not rel:
         return None
+
+    if vaciando:
+        return ("borrado", "dejar vacío un archivo que ya existe", rel,
+                ["se pierde todo lo que tenía adentro", "no siempre se puede recuperar"])
 
     for clave, etiqueta, patron, riesgos in ZONAS_ARCHIVO:
         if re.search(patron, rel, re.IGNORECASE):
@@ -383,6 +439,10 @@ def revisar_archivo(ruta, contenido=""):
 def revisar_comando(cmd):
     if not cmd:
         return None
+
+    prohibido = revisar_borrado_comando(cmd)
+    if prohibido:
+        return prohibido
 
     for clave, etiqueta, patron, riesgos in ZONAS_COMANDO:
         if re.search(patron, cmd, re.IGNORECASE):
@@ -431,6 +491,10 @@ MCP_SOLO_LEE = re.compile(
 
 def revisar_mcp(tool_name, tool_input):
     corto_nombre = tool_name.split("__")[-1]
+    if BORRADO_MCP.search(corto_nombre):
+        return ("borrado", "borrar información real de clientes", corto_nombre,
+                ["esto borra de verdad, en vivo, y no queda registro",
+                 "no hay forma de volver atrás"])
     if MCP_SOLO_LEE.search(corto_nombre):
         return None
     if not ESTRICTO and not re.search(
@@ -500,6 +564,27 @@ def mensaje(etiqueta, objetivo, riesgos):
     return "\n".join(lineas)
 
 
+def mensaje_prohibido(etiqueta, objetivo, riesgos):
+    lineas = [
+        "⛔  Esto no se puede hacer",
+        "",
+        f"Borrar está prohibido en este proyecto. Estabas por {etiqueta} "
+        f"({objetivo}).",
+        "",
+        "Por qué:",
+    ]
+    lineas += [f"  • {r}" for r in riesgos]
+    lineas += [
+        "",
+        f"Esto no se puede aceptar ni saltar: tiene que hacerlo el {CONTACTO}.",
+        "Escríbeles qué querías borrar y por qué, y ellos lo revisan.",
+        "",
+        "Si lo que necesitas es cambiar o reemplazar algo en vez de borrarlo, "
+        "eso sí se puede: pídelo así.",
+    ]
+    return "\n".join(lineas)
+
+
 def main():
     datos = leer_entrada()
     evento = datos.get("hook_event_name", "PreToolUse")
@@ -512,7 +597,15 @@ def main():
     elif tool_name.startswith("mcp__"):
         hallazgo = revisar_mcp(tool_name, tool_input)
     elif archivo_de(tool_input):
-        hallazgo = revisar_archivo(archivo_de(tool_input), contenido_de(tool_input))
+        ruta = archivo_de(tool_input)
+        cont = contenido_de(tool_input)
+        vaciando = (
+            tool_name == "Write"
+            and not cont.strip()
+            and os.path.exists(ruta)
+            and os.path.getsize(ruta) > 0
+        )
+        hallazgo = revisar_archivo(ruta, cont, vaciando)
     else:
         hallazgo = None
 
@@ -520,6 +613,23 @@ def main():
         sys.exit(0)
 
     clave, etiqueta, objetivo, riesgos = hallazgo
+
+    # Eliminación: prohibida. No se pregunta, no se puede aceptar.
+    if clave == "borrado":
+        if evento == "PostToolUse":
+            sys.exit(0)
+        print(
+            json.dumps(
+                {
+                    "hookSpecificOutput": {
+                        "hookEventName": "PreToolUse",
+                        "permissionDecision": "deny",
+                        "permissionDecisionReason": mensaje_prohibido(etiqueta, objetivo, riesgos),
+                    }
+                }
+            )
+        )
+        sys.exit(0)
 
     # En estricto, aceptar un archivo NO abre toda su zona: la memoria se
     # guarda por archivo o comando concreto.
