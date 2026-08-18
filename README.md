@@ -7,17 +7,18 @@ Guardrail para cuando dejas que alguien externo edite el código de un proyecto
 en producción.
 
 Avisa antes de que toque algo fuera de la zona segura, le explica qué puede
-salir mal, y **lo deja seguir si acepta la responsabilidad**. No bloquea nunca.
+salir mal **en palabras que cualquiera entiende**, y **lo deja seguir si acepta
+la responsabilidad**. No bloquea nunca.
 
 ```
 ⚠️  Fuera de la zona segura
 
 Mejor solicita este cambio al Equipo de Woob, porque estas tocando:
-base de datos y migraciones (supabase/migrations/0007_leads.sql).
+dónde se guarda la información de los clientes (supabase/migrations/0007_leads.sql).
 
 Qué puede salir mal:
-  • puede borrar o corromper datos reales de clientes
-  • muchas migraciones no se pueden deshacer una vez corridas
+  • puede borrar o dañar información real de clientes
+  • una vez hecho, muchas veces ya no se puede deshacer
 
 Si prefieres ir a la segura, pídeselo al Equipo de Woob y no toques nada.
 Si aceptas la responsabilidad de este cambio, apruébalo y sigue:
@@ -136,14 +137,41 @@ Una lista negra siempre tiene agujeros — `src/lib/helpers.ts` no parece
 peligroso hasta que resulta que ahí vive la conexión a la base de datos.
 
 **Zona segura** (pasa sin avisos):
-interfaz · estilos · textos y traducciones · imágenes y fuentes · tests · docs
+pantallas · colores · textos · imágenes · pruebas · documentación
 
 **Todo lo demás avisa**, con nombre propio cuando lo reconoce:
-base de datos y migraciones · schema y modelos · backend y API · auth y
-permisos · secretos y `.env` · infra y deploy · dependencias y build · pagos y
-webhooks · el guardrail mismo (`.claude/`) · comandos destructivos.
+dónde se guarda la información de los clientes · cómo está organizada · el
+motor de atrás · quién puede entrar y qué ve cada uno · las llaves de acceso ·
+lo que mantiene el sitio en línea · las piezas del proyecto · los cobros · los
+avisos de seguridad mismos · comandos que borran sin vuelta atrás.
 
 Y con nombre genérico cuando no: *"un archivo que está fuera de la zona segura"*.
+
+## Todo se dice en simple
+
+La persona que lee el aviso puede no saber qué es una migración, un endpoint o
+un token. Si no entiende el aviso, lo acepta sin leer — y ahí el aviso no
+sirvió de nada.
+
+Por eso ni el hook ni la skill usan una sola palabra técnica. `SKILL.md` trae
+un diccionario de traducción y la regla de fondo: **explica la consecuencia, no
+el mecanismo.**
+
+| No se dice | Se dice |
+|---|---|
+| base de datos, migración, SQL | dónde se guarda la información de los clientes |
+| schema, modelo, tabla | cómo está organizada la información |
+| backend, API, endpoint | el motor que hace funcionar todo por detrás |
+| autenticación, token, RLS | quién puede entrar y qué puede ver cada persona |
+| variables de entorno, secretos | las llaves de acceso del sistema |
+| infraestructura, deploy | lo que mantiene el sitio en línea |
+| dependencias, build, lockfile | las piezas que el proyecto necesita para armarse |
+| irreversible | no se puede deshacer |
+| breaking change | otras pantallas dejan de funcionar |
+| producción | el sitio que están usando los clientes ahora mismo |
+
+La única excepción es el nombre del archivo o el comando: ese va tal cual,
+porque es lo único que ubica a la persona en dónde está parada.
 
 ## Detalles que importan
 

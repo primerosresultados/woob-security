@@ -35,69 +35,69 @@ SIEMPRE_PREGUNTAR = {"destructivo", "guardrail", "secretos", "infra", "eval", "m
 ZONAS_ARCHIVO = [
     (
         "guardrail",
-        "la configuración de Claude Code y de este mismo guardrail",
+        "los avisos de seguridad que te protegen",
         r"(^|/)\.claude/|(^|/)(CLAUDE|AGENTS)\.md$|(^|/)\.cursorrules$|(^|/)\.mcp\.json$",
         [
-            "estarías desactivando o alterando las advertencias que te protegen",
-            "un cambio acá afecta a todo el que trabaje en el repo, no solo a ti",
+            "estarías apagando los avisos que te protegen",
+            "esto le cambia las reglas a todos, no solo a ti",
         ],
     ),
     (
         "db",
-        "base de datos y migraciones",
+        "dónde se guarda la información de los clientes",
         r"(^|/)(migrations?|migraciones)/|(^|/)seeds?(/|\.)|\.sql$|(^|/)alembic/|"
         r"(^|/)(knex|drizzle|sequelize)\b|supabase/|(^|/)(db|database|datos)/|"
         r"(^|/|_|-)(db|database|supabase|firestore|mongo|postgres)($|/|_|-|\.)",
         [
-            "puede borrar o corromper datos reales de clientes",
-            "muchas migraciones no se pueden deshacer una vez corridas",
+            "puede borrar o dañar información real de clientes",
+            "una vez hecho, muchas veces ya no se puede deshacer",
         ],
     ),
     (
         "schema",
-        "el schema y los modelos de datos",
+        "cómo está organizada la información",
         r"schema\.[a-z]+$|(^|/)(models?|entities|entidades|schemas?)/|\.graphql$|"
         r"(^|/)prisma/|\.prisma$|(^|/)types?/api",
         [
-            "rompe todo el código que asume la forma vieja de los datos",
-            "suele fallar en producción, no en local",
+            "pantallas que hoy funcionan pueden dejar de cargar",
+            "casi nunca falla en tu computador: falla en el sitio de verdad",
         ],
     ),
     (
         "auth",
-        "autenticación, sesiones y permisos",
+        "quién puede entrar y qué puede ver cada persona",
         r"(^|/|_|-)(auth|autenticacion|login|session|sesion|jwt|oauth|rbac|rls|permis|"
         r"policy|policies|politicas|guard|middleware|roles?)(s)?($|/|_|-|\.)|"
         r"\.rules$|firestore\.rules|storage\.rules",
         [
-            "un error acá deja datos de un cliente visibles para otro",
-            "los agujeros de permisos no se ven hasta que alguien los usa",
+            "un error acá deja que un cliente vea la información de otro",
+            "no se nota que está mal hasta que alguien se aprovecha",
         ],
     ),
     (
         "secretos",
-        "secretos y credenciales",
+        "las llaves de acceso del sistema",
         r"(^|/)\.env|(^|/|_|-)(secrets?|credentials?|credenciales|apikeys?)($|/|_|-|\.)|"
         r"\.(pem|key|p12|pfx|jks|keystore)$|serviceAccount.*\.json$|"
         r"(^|/)\.(gitignore|dockerignore|npmrc)$",
         [
-            "una credencial que entra al repo queda expuesta para siempre, aunque la borres después",
-            "tocar .gitignore puede hacer que se suba al repo algo que estaba protegido",
+            "una llave que entra al proyecto queda a la vista para siempre, aunque después la borres",
+            "puede hacer que se publique algo que estaba escondido",
         ],
     ),
     (
         "pagos",
-        "pagos e integraciones externas",
+        "los cobros y el dinero",
         r"(^|/|_|-)(stripe|mercadopago|transbank|webpay|khipu|flow|paypal|payment|pagos?|"
         r"checkout|billing|facturacion|webhooks?|twilio|sendgrid|resend)($|/|_|-|\.)",
         [
             "acá se mueve plata real",
-            "los webhooks fallidos no siempre se pueden reintentar",
+            "si un cobro falla, no siempre se puede repetir",
         ],
     ),
     (
         "infra",
-        "infraestructura y deploy",
+        "lo que mantiene el sitio en línea",
         r"(^|/)Dockerfile|docker-compose|(^|/)\.github/|(^|/)\.gitlab-ci|"
         r"(vercel|firebase|now|turbo|nx|angular|app|render|railway)\.json$|"
         r"(netlify|fly|wrangler|serverless|render|app|pnpm-workspace)\.(toml|yml|yaml)$|"
@@ -109,19 +109,19 @@ ZONAS_ARCHIVO = [
     ),
     (
         "backend",
-        "el backend y la API",
+        "el motor que hace funcionar todo por detrás",
         r"(^|/)(api|server|servidor|backend|routes?|rutas|controllers?|handlers?|resolvers?|"
         r"services|servicios|functions|lambdas?|edge-functions|jobs|workers?|queues?|colas|"
         r"actions|server-actions|trpc|convex|graphql|rpc|cron|scripts?)/|"
         r"\.server\.[a-z]+$|(^|/)route\.[a-z]+$|(^|/)server\.[a-z]+$",
         [
-            "cambia el contrato que consumen el front y las integraciones",
+            "otras pantallas y otros servicios dejan de funcionar",
             "se rompen pantallas que no estás mirando",
         ],
     ),
     (
         "build",
-        "dependencias y configuración de build",
+        "las piezas que el proyecto necesita para armarse",
         r"(^|/)(package\.json|package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb|"
         r"requirements.*\.txt|pyproject\.toml|poetry\.lock|Pipfile.*|Gemfile.*|go\.(mod|sum)|"
         r"Cargo\.(toml|lock)|composer\.(json|lock))$|"
@@ -129,7 +129,7 @@ ZONAS_ARCHIVO = [
         r"(^|/)(next|vite|webpack|rollup|astro|nuxt|svelte|remix|tailwind|postcss|babel|"
         r"eslint|jest|vitest|playwright|cypress|metro)\.config\.[a-z]+$",
         [
-            "puede romper el build de todo el equipo, no solo el tuyo",
+            "el proyecto puede dejar de armarse para todo el equipo, no solo para ti",
         ],
     ),
 ]
@@ -171,13 +171,13 @@ SEGURA_SUFIJO = re.compile(r"\.(test|spec|stories|story|mock|fixture)\.[a-z]+$",
 CONTENIDO_RIESGOSO = [
     (
         "backend",
-        "código de servidor dentro de un archivo de interfaz",
+        "una pantalla a la que le estás dando permisos que no tenía",
         re.compile(r"""^\s*['"]use server['"]|\bcreateServerClient\b|\bSERVICE_ROLE\b""", re.M),
-        ["ese archivo deja de ser front y pasa a correr en el servidor con permisos altos"],
+        ["esa pantalla pasa a tener permisos que antes no tenía"],
     ),
     (
         "secretos",
-        "una credencial escrita directamente en el código",
+        "una llave de acceso escrita a mano dentro del proyecto",
         re.compile(
             r"(sk_live_|rk_live_|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,}|xox[baprs]-|"
             r"-----BEGIN [A-Z ]*PRIVATE KEY-----|eyJhbGciOi[A-Za-z0-9_-]{20,}|"
@@ -187,13 +187,13 @@ CONTENIDO_RIESGOSO = [
     ),
     (
         "db",
-        "SQL que modifica la base de datos",
+        "una orden que borra o cambia información de verdad",
         re.compile(
             r"\b(drop|truncate)\s+(table|database|schema|column)\b|\balter\s+table\b|"
             r"\bdelete\s+from\b(?!.*\bwhere\b)",
             re.I,
         ),
-        ["puede borrar datos reales de forma irreversible"],
+        ["puede borrar información real sin poder recuperarla"],
     ),
 ]
 
@@ -201,17 +201,17 @@ CONTENIDO_RIESGOSO = [
 ZONAS_COMANDO = [
     (
         "db",
-        "la base de datos",
+        "la información de los clientes, en vivo",
         r"\b(drop|truncate)\s+(table|database|schema)\b|\balter\s+table\b|\bdelete\s+from\b|"
         r"\bpsql\b|\bmysql\b|\bmongo(sh|dump|restore)?\b|\bredis-cli\b|"
         r"prisma\s+(migrate|db\s+push|db\s+seed)|supabase\s+db|\bpg_(dump|restore)\b|"
         r"\b(alembic|knex|sequelize|drizzle-kit|typeorm)\b|"
         r"(rails|php artisan|django-admin|manage\.py)\s+.*(migrat|db)",
-        ["puede borrar datos reales de forma irreversible"],
+        ["puede borrar información real sin poder recuperarla"],
     ),
     (
         "infra",
-        "el deploy a producción",
+        "el sitio que están usando los clientes ahora mismo",
         r"\b(vercel|netlify|fly|heroku|railway|wrangler|firebase|gcloud|aws|eb)\s+\w*\s*deploy|"
         r"\bdocker\s+push\b|\bterraform\s+(apply|destroy)\b|\bkubectl\s+(apply|delete|scale)\b|"
         r"\bpm2\s+(restart|reload|delete)\b|\bsystemctl\b|--prod\b|--production\b|"
@@ -220,7 +220,7 @@ ZONAS_COMANDO = [
     ),
     (
         "eval",
-        "un comando que escribe archivos por un intérprete embebido",
+        "una forma de escribir archivos sin decir cuáles",
         r"\b(python3?|node|ruby|perl|php)\s+-(c|e)\b|\beval\b|"
         r"<<\s*[\'\"]?(EOF|PY|SH|JSON)[\'\"]?|\bbase64\s+-[dD]\b|\bxargs\b",
         [
@@ -230,7 +230,7 @@ ZONAS_COMANDO = [
     ),
     (
         "destructivo",
-        "un comando destructivo",
+        "un comando que borra cosas sin vuelta atrás",
         r"\brm\s+-[a-zA-Z]*[rf]|\bgit\s+push\b.*(--force|-f\b)|\bgit\s+reset\s+--hard\b|"
         r"\bgit\s+clean\s+-[a-z]*f|\bgit\s+(checkout|restore)\s+\.|\bgit\s+branch\s+-D\b|"
         r"\bfind\b.*-delete\b|\bshred\b|\bmkfs\b|\bdd\s+of=",
@@ -238,30 +238,30 @@ ZONAS_COMANDO = [
     ),
     (
         "secretos",
-        "secretos y credenciales",
+        "las llaves de acceso del sistema",
         r"\b(export|set)\s+[A-Z_]*(KEY|TOKEN|SECRET|PASSWORD|PASSWD|DSN)\b|\bgh\s+secret\b|"
         r"\b(vercel|fly|heroku|railway)\s+(env|secrets)\b|\bsupabase\s+secrets\b|"
         r"\bopenssl\s+(genrsa|rsa|req)\b",
-        ["una credencial mal puesta se filtra en logs e historial"],
+        ["una llave mal puesta queda registrada y a la vista"],
     ),
     (
         "script",
-        "un script del proyecto que no sabemos qué hace por dentro",
+        "un atajo que puede hacer varias cosas de golpe",
         r"\b(npm|pnpm|yarn|bun)\s+run\s+(?!dev\b|start\b|test\b|lint\b|format\b|"
         r"typecheck\b|check\b|build\b|storybook\b)\S+|"
         r"\b(make|just)\s+\S+|\b(bash|sh|zsh|source)\s+\S+\.(sh|bash|zsh)\b|(^|\s)\./\S+\.(sh|py|js)\b|"
         r"\bcurl\b[^|]*\|\s*(bash|sh|zsh)\b",
         [
-            "un script del package.json o un .sh puede correr migraciones o deploys por dentro",
-            "abre el script y mira qué hace antes de aceptar",
+            "un atajo así puede tocar la información de los clientes o el sitio en vivo sin avisar",
+            "no se ve desde afuera qué es lo que va a hacer",
         ],
     ),
     (
         "build",
-        "las dependencias del proyecto",
+        "las piezas que el proyecto necesita para armarse",
         r"\b(npm|pnpm|yarn|bun)\s+(i|install|add|remove|uninstall|update|upgrade)\b|"
         r"\bpip\s+(install|uninstall)\b|\b(gem|composer|cargo|go)\s+(install|get|add|remove)\b",
-        ["cambia el árbol de dependencias para todo el equipo"],
+        ["cambia las piezas del proyecto para todo el equipo"],
     ),
 ]
 
@@ -356,8 +356,8 @@ def revisar_archivo(ruta, contenido=""):
         "un archivo que está fuera de la zona segura",
         rel,
         [
-            "la zona segura es interfaz, estilos, textos, imágenes, tests y documentación",
-            "este archivo no está ahí, así que puede tener lógica de la que dependen otras partes",
+            "la zona segura es: pantallas, colores, textos, imágenes, pruebas y documentación",
+            "este archivo no está ahí, así que puede tener algo de lo que dependen otras partes",
         ],
     )
 
@@ -397,11 +397,11 @@ def revisar_mcp(tool_name, tool_input):
     corto = tool_name.split("__")[-1]
     return (
         "mcp",
-        "datos reales a través de una herramienta externa (MCP)",
+        "información real de clientes, en vivo",
         corto,
         [
-            "esto no toca archivos: escribe directamente sobre datos de producción",
-            "no hay control de versiones ni forma de revertirlo con git",
+            "esto no toca archivos: cambia información real de clientes, en vivo",
+            "no queda registro y no hay forma de volver atrás",
         ],
     )
 
