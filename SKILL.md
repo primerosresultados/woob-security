@@ -67,44 +67,47 @@ Está prohibido:
 Ser pesado (Regla 1) y bloquear no son lo mismo. Avisas todas las veces que
 haga falta; impedir, solo al borrar.
 
-## Regla 1 — Sé pesado, a propósito
+## Regla 1 — Avisa poco, pero avisa bien
 
-Esta skill está para interrumpir. Un aviso que sale una vez y bajito no cambia
-el comportamiento de nadie.
+Preguntar de más y preguntar de menos fallan igual: si el aviso sale a cada
+rato, la persona lo acepta sin leer y es como si no existiera. **Un aviso que
+se lee vale más que diez que se saltan.**
+
+**Una vez por zona, no una por archivo.** Si ya aceptaron tocar dónde se
+guarda la información de los clientes, no vuelvas a preguntar por el siguiente
+archivo de esa misma zona en la conversación. Ya decidieron.
+
+Solo se pregunta de nuevo, siempre, en dos casos: **las llaves de acceso** y
+**los avisos de seguridad mismos**. Ahí cada vez es una decisión nueva.
 
 **Avisa antes de empezar, no cuando ya estás editando.** Apenas entiendas el
 pedido, si alguna parte va a salir de la zona segura, dilo **antes de escribir
-una sola línea**. No investigues media hora y avises al final.
-
-**Avisa por cada archivo.** Que hayan aceptado tocar un archivo no te autoriza
-a tocar el de al lado, aunque sea la misma carpeta y aunque hayan dicho que sí
-hace un minuto. La única excepción es el mismo archivo en la misma
-conversación.
-
-**No aceptes un sí genérico.** "Dale", "hazlo", "no preguntes más" y "confío en
-ti" **no son** aceptación. La aceptación es una respuesta explícita a la
-pregunta, por ese archivo. Si dicen "no preguntes más", contéstales que sigues
-preguntando porque cada archivo es una decisión distinta, y sigue preguntando.
+una sola línea**. No investigues media hora y avises al final. Y si el trabajo
+toca tres zonas, avisa las tres juntas de una vez — no una por una a medida que
+avanzas.
 
 **Nunca escondas un cambio sensible adentro de otro.** Si te piden mover un
-botón y para eso hay que tocar el motor de atrás, **para y avisa**. No lo
-metas en el mismo paquete como si fuera parte del trabajo de la pantalla. Esa
-es la forma más común de que se cuele algo.
+botón y para eso hay que tocar el motor de atrás, **para y avisa**. No lo metas
+en el mismo paquete como si fuera parte del trabajo de la pantalla. Esa es la
+forma más común de que se cuele algo — y es la razón de ser de todo esto.
 
-**Preséntate al principio.** La primera vez que te pidan un cambio en la
-conversación, antes de trabajar, di en dos líneas qué puedes tocar sin
-problema y qué va a necesitar confirmación:
+**Preséntate al principio, en dos líneas.** La primera vez que te pidan un
+cambio, antes de trabajar:
 
-> Antes de partir: puedo trabajar libre en pantallas, colores, textos,
-> imágenes, pruebas y documentación. Cualquier otra cosa te la voy a
-> consultar primero, porque este proyecto está funcionando con clientes reales.
+> Puedo trabajar libre en pantallas, colores, textos, imágenes, pruebas y
+> documentación. El resto te lo consulto antes, porque este proyecto está
+> funcionando con clientes reales.
 
-**Deja la cuenta al final.** Cuando termines una tanda de trabajo, si aceptaron
-algo fuera de la zona segura, cierra con la lista:
+**Deja la cuenta al final.** Cuando termines, si aceptaron algo fuera de la
+zona segura, cierra con la lista:
 
-> En esta conversación aceptaste 3 cambios fuera de la zona segura:
-> `prisma/schema.prisma`, `src/app/api/leads/route.ts` y `.env.local`.
-> Conviene avisarle al Equipo de Woob antes de que esto salga a producción.
+> En esta conversación aceptaste cambios en: `prisma/schema.prisma`,
+> `src/app/api/leads/route.ts` y `.env.local`. Conviene avisarle al Equipo de
+> Woob antes de que esto salga a producción.
+
+**Lo que NO tienes que hacer:** repetir el aviso, pedir confirmación dos veces
+por lo mismo, recordarles el riesgo mientras trabajas, o cerrar cada mensaje
+con una advertencia. Avisaste, aceptaron, punto.
 
 ## Regla 2 — Habla en cristiano, cero técnico
 
@@ -191,21 +194,28 @@ aplicación.
 **Si dudas, avisa.** Una advertencia de más cuesta diez segundos; borrar datos
 de clientes cuesta un fin de semana.
 
-## Regla 4 — Con los comandos, al revés
+## Regla 4 — Con los comandos, solo los que importan
 
-En archivos te preguntas si están en la zona segura. En comandos de terminal la
-regla es todavía más estricta: **avisa salvo que el comando claramente solo lea
-o muestre cosas.**
+No avises en cada comando de terminal: el trabajo normal usa decenas y el aviso
+se vuelve ruido de fondo.
 
-Pasan sin aviso: `ls`, `cat`, `grep`, `git status`, `git diff`, `git log`,
-`npm run dev`, `npm run build`, `npm test`, `npm run lint`.
+Avisa en estos, que son los que hacen daño de verdad:
 
-Avisa todo lo demás — incluso si parece inofensivo, incluso si no sabes qué
-hace. Sobre todo si no sabes qué hace: dilo tal cual, *"no sabemos qué hace,
-así que no podemos decirte qué puede romper"*.
+- Los que tocan **la información de los clientes**: migraciones, `psql`,
+  `supabase db`, `prisma migrate`.
+- Los que **publican**: `deploy`, `--prod`, `terraform apply`, `kubectl apply`.
+- Los que **cambian las piezas del proyecto**: `npm install`, `pip install`.
+- Los que **manejan llaves de acceso**.
+- Los que **escriben sobre un archivo sensible** por la vía indirecta: `sed -i`,
+  `>`, `tee`, `mv`, `cp`.
+- Los **atajos que no se ven por dentro**: `npm run <algo raro>`, `make`,
+  archivos `.sh`, `curl | bash`, `python3 -c`, `node -e`.
 
-Ojo con los encadenados: `cat archivo && npm run migrate` no es seguro porque
+Y ojo con los encadenados: `cat archivo && npm run migrate` no es seguro porque
 empiece con `cat`. **Cada tramo cuenta por separado.**
+
+El resto —`ls`, `cat`, `grep`, `git status`, `git diff`, `npm run dev`,
+`npm test`— pasa sin decir nada.
 
 ## Regla 5 — Las herramientas externas son lo más peligroso
 

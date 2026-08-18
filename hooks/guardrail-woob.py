@@ -25,15 +25,28 @@ import tempfile
 
 CONTACTO = "Equipo de Woob"
 
-# "estricto" (por defecto): lo que no se reconoce, avisa. Cada archivo y cada
-# comando pregunta por separado.
-# "normal": los comandos no reconocidos pasan y aceptar una zona la abre entera
-# para el resto de la sesión.
-NIVEL = os.environ.get("WOOB_GUARDRAIL_NIVEL", "estricto").strip().lower()
-ESTRICTO = NIVEL != "normal"
+# "equilibrado" (por defecto): protege los datos sin volverse insoportable.
+#   - Borrar sigue prohibido, siempre.
+#   - Base de datos, llaves, permisos, dinero y herramientas externas: avisan.
+#   - Pregunta UNA vez por zona en la sesión, no una vez por archivo.
+#   - Los comandos que no reconoce pasan (el ruido no valía la pena).
+# "estricto": además pregunta por cada archivo y avisa en todo comando que no
+#   sea claramente de solo lectura.
+# "relajado": como equilibrado, pero las herramientas externas que escriben y
+#   los nombres sospechosos en carpetas seguras dejan de avisar.
+NIVEL = os.environ.get("WOOB_GUARDRAIL_NIVEL", "equilibrado").strip().lower()
+if NIVEL in ("normal", "relajado"):
+    NIVEL = "relajado"
+elif NIVEL != "estricto":
+    NIVEL = "equilibrado"
+
+ESTRICTO = NIVEL == "estricto"          # pregunta por archivo, avisa en comandos raros
+PROTEGE_DATOS = NIVEL != "relajado"     # herramientas externas y nombres sospechosos
 
 # Zonas cuya aceptación NO se recuerda: cada vez vuelve a preguntar.
-SIEMPRE_PREGUNTAR = {"destructivo", "guardrail", "secretos", "infra", "eval", "mcp"}
+# Zonas que vuelven a preguntar aunque ya hayan aceptado antes. Corta: si todo
+# pregunta siempre, nadie lee ninguna.
+SIEMPRE_PREGUNTAR = {"guardrail", "secretos"}
 
 # ---------------------------------------------------------------- lista negra
 # Se revisa PRIMERO. Gana sobre la lista blanca: un .md dentro de .claude/
@@ -400,7 +413,7 @@ def es_segura(rel):
     if not SEGURA_CARPETA.search(rel):
         return False
     # Está en carpeta segura, pero el nombre delata que no es solo pantalla.
-    return not (ESTRICTO and NOMBRE_SOSPECHOSO.search(rel))
+    return not (PROTEGE_DATOS and NOMBRE_SOSPECHOSO.search(rel))
 
 
 def revisar_archivo(ruta, contenido="", vaciando=False):
@@ -497,7 +510,7 @@ def revisar_mcp(tool_name, tool_input):
                  "no hay forma de volver atrás"])
     if MCP_SOLO_LEE.search(corto_nombre):
         return None
-    if not ESTRICTO and not re.search(
+    if not PROTEGE_DATOS and not re.search(
         r"(write|create|update|delete|insert|upsert|remove|execute|sql|migrat|"
         r"deploy|push|set_|guardar|eliminar|registrar|actualizar|agregar)",
         tool_name,

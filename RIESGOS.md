@@ -60,21 +60,23 @@ un permiso del sistema. Todo lo de arriba se arregla en el servidor, no acá.
 
 ## 3. Riesgos del propio diseño
 
-- **Fatiga de alerta. Este es ahora el riesgo número uno**, y es el precio
-  directo de lo agresivo que quedó. En modo estricto avisa por cada archivo y
-  por cada comando que no sea claramente de solo lectura. Si la persona ve
-  cuarenta avisos en media hora, deja de leerlos y acepta por reflejo — y ahí
-  el guardrail vale cero, aunque técnicamente esté "funcionando".
+- **Fatiga de alerta.** Sigue siendo el riesgo número uno, aunque el nivel por
+  defecto se calibró justamente para eso: una pregunta por zona y los comandos
+  desconocidos pasando. Si la persona ve cuarenta avisos en media hora deja de
+  leerlos y acepta por reflejo — y ahí el guardrail vale cero, aunque
+  técnicamente esté "funcionando".
 
-  Dos salidas cuando eso pasa, en este orden:
-  1. Ajustar `SEGURA_CARPETA` a las convenciones reales del proyecto. Si avisa
-     en todo, casi siempre es porque la zona segura no coincide con cómo está
-     ordenado ese repo.
-  2. `WOOB_GUARDRAIL_NIVEL=normal`, que vuelve al comportamiento anterior:
-     los comandos no reconocidos pasan y aceptar una zona la abre entera.
+  Si pasa: ajustar `SEGURA_CARPETA` a las convenciones del proyecto antes de
+  bajar el nivel.
 
-- **La memoria por archivo multiplica los avisos.** Aceptar `0007.sql` ya no
-  autoriza `0008.sql`. Es más seguro y más molesto, en esa proporción exacta.
+- **El precio de calibrarlo así.** Una vez que aceptan una zona, el resto de
+  esa zona pasa callado en la conversación. Es la decisión consciente: vale más
+  un aviso que se lee que diez que se saltan. Las llaves de acceso y la
+  configuración del guardrail son la excepción y preguntan siempre.
+
+- **Los comandos desconocidos vuelven a pasar** en el nivel por defecto.
+  `docker compose up`, `ssh servidor`, `npx tsx script.ts` no avisan. Si te
+  importa cubrir eso, `WOOB_GUARDRAIL_NIVEL=estricto`.
 - **Falsos negativos silenciosos.** Cuando el guardrail no avisa, no dice
   "revisé y está bien". Dice "no lo reconocí". No son lo mismo.
 - **Advertir no es impedir.** Por diseño. La persona puede aceptar todo. El

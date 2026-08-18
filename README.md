@@ -206,57 +206,55 @@ externa cuyo nombre sea de eliminar.
 La skill acompaña: en vez de solo negarse, propone la alternativa que no borra
 (renombrar, comentar, marcar como inactivo, dejar de mostrarlo).
 
-## La skill interrumpe a propósito
+## Cuánto pregunta
 
-Un aviso que sale una vez y bajito no le cambia el comportamiento a nadie. Por
-eso la skill está escrita para ser pesada:
+Preguntar de más y preguntar de menos fallan igual: si el aviso sale a cada
+rato, se acepta sin leer y es como si no existiera. La calibración por defecto:
 
-- **Se presenta al principio.** Antes del primer cambio dice qué puede tocar
-  libre y qué va a consultar.
-- **Avisa antes de empezar**, no cuando ya está editando. Si el pedido va a
-  salir de la zona segura, lo dice antes de escribir una línea.
-- **No acepta un sí genérico.** "Dale", "hazlo" o "no preguntes más" no son
-  aceptación: tiene que ser una respuesta explícita, por ese archivo. Si le
-  dicen que no pregunte más, explica por qué sigue preguntando y sigue
-  preguntando.
+- **Una vez por zona, no una por archivo.** Aceptar un cambio en la base de
+  datos no hace que vuelva a preguntar por el siguiente archivo de la misma
+  zona en esa conversación.
+- **Salvo dos:** las llaves de acceso y los avisos de seguridad mismos
+  preguntan siempre.
+- **Los comandos que no reconoce pasan.** Avisa solo en los que hacen daño de
+  verdad: migraciones, publicaciones, instalar paquetes, escrituras indirectas
+  sobre archivos sensibles, y atajos que no se ven por dentro (`npm run <algo>`,
+  `make`, `.sh`, `curl | bash`, `python3 -c`).
+- **Avisa antes de empezar**, no a mitad de camino, y junta todas las zonas del
+  trabajo en un solo aviso.
 - **No esconde un cambio sensible adentro de otro.** Si mover un botón obliga a
   tocar el motor de atrás, para y avisa. Es la forma más común de que se cuele
   algo.
-- **Deja la cuenta al final:** la lista de todo lo que se aceptó fuera de la
-  zona segura, para pasársela a Woob.
+- **Deja la cuenta al final:** la lista de lo que se aceptó fuera de la zona
+  segura, para pasársela a Woob.
 
-Nada de esto bloquea. Ser pesado e impedir no son lo mismo.
+## Lo que protege siempre, en cualquier nivel
 
-## Modo estricto (por defecto)
-
-- **Los comandos van al revés que los archivos:** avisa salvo que el comando
-  sea claramente de solo lectura (`ls`, `cat`, `grep`, `git status`,
-  `npm run dev`, `npm test`…). Todo lo demás pregunta, incluido lo que no
-  reconoce. Y cada tramo de un comando encadenado cuenta por separado:
-  `cat x && npm run migrate` no pasa por empezar con `cat`.
-- **Aceptar un archivo no abre su zona.** Aceptar `0007.sql` no autoriza
-  `0008.sql`. La memoria es por archivo, no por categoría.
-- **Las herramientas externas (MCP) avisan casi siempre**, salvo las que solo
-  consultan. Son el vector más peligroso: escriben sobre datos reales sin git,
-  sin diff y sin forma de volver atrás.
+- **Borrar.** Prohibido, sin opción de aceptar.
+- **La información de los clientes**, sus llaves de acceso, quién puede entrar
+  y el dinero.
+- **Las herramientas externas (MCP) que escriben.** Son el vector más
+  peligroso: tocan datos reales sin git, sin diff y sin forma de volver atrás.
 - **Nombres sospechosos dentro de carpetas seguras.** `src/ui/config.ts` y
   `src/components/cliente-db.ts` avisan igual: están en zona segura pero el
   nombre delata que no son solo pantalla.
-- **El contenido también cuenta.** Un componente deja de ser seguro si le
-  escribes `"use server"`, una llave de acceso o un `DROP TABLE`.
-- **Zonas que preguntan siempre**, aunque ya hayan aceptado antes: comandos
-  destructivos, llaves de acceso, lo que mantiene el sitio en línea, los avisos
-  de seguridad mismos, y las herramientas externas.
+- **El contenido.** Un componente deja de ser seguro si le escribes
+  `"use server"`, una llave de acceso o un `DROP TABLE`.
 
-Si avisa demasiado para tu proyecto, la primera respuesta es ajustar
-`SEGURA_CARPETA` a cómo está ordenado ese repo. La segunda:
+## Tres niveles
 
 ```bash
-WOOB_GUARDRAIL_NIVEL=normal   # los comandos desconocidos pasan y aceptar una zona la abre entera
+WOOB_GUARDRAIL_NIVEL=equilibrado   # por defecto
+WOOB_GUARDRAIL_NIVEL=estricto      # pregunta por cada archivo y en todo comando que no sea de solo lectura
+WOOB_GUARDRAIL_NIVEL=relajado      # además deja pasar las herramientas externas y los nombres sospechosos
 ```
 
-Léelo con cuidado: un guardrail que grita en todo se aprende a ignorar, y ahí
-deja de servir. Ver [RIESGOS.md](RIESGOS.md).
+Borrar sigue prohibido en los tres.
+
+Si aun así avisa demasiado para tu proyecto, antes de bajar el nivel ajusta
+`SEGURA_CARPETA` a cómo está ordenado ese repo: cuando avisa en todo, casi
+siempre es porque la zona segura no coincide con sus convenciones. Ver
+[RIESGOS.md](RIESGOS.md).
 
 ## Antes de confiar en esto
 
