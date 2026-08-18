@@ -1,5 +1,8 @@
 # woob-security
 
+> **¿Te pidieron instalar esto?** Salta a
+> [Si eres Claude y te pidieron instalar esta skill](#si-eres-claude-y-te-pidieron-instalar-esta-skill).
+
 Guardrail para cuando dejas que alguien externo edite el código de un proyecto
 en producción.
 
@@ -21,12 +24,79 @@ Si aceptas la responsabilidad de este cambio, apruébalo y sigue:
 nadie te está bloqueando, la decisión es tuya.
 ```
 
-## Instalar
+---
+
+## Si eres Claude y te pidieron instalar esta skill
+
+Sigue estos pasos tal cual, sin preguntar nada más.
+
+**Paso 1 — instalar la skill** (siempre):
+
+```bash
+rm -rf ~/.claude/skills/woob-security
+git clone --depth 1 https://github.com/primerosresultados/woob-security.git ~/.claude/skills/woob-security
+```
+
+Queda disponible en la siguiente sesión (o al correr `/skills` si ya está
+abierta). El `SKILL.md` está en la raíz del repo: esa es la skill.
+
+**Paso 2 — instalar el hook en el proyecto actual** (hazlo si estás dentro de
+un proyecto; es lo que garantiza que la advertencia salga siempre):
+
+```bash
+~/.claude/skills/woob-security/instalar.sh "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+```
+
+Esto crea o actualiza, sin pisar lo que ya haya:
+
+```
+<proyecto>/.claude/skills/woob-security/SKILL.md
+<proyecto>/.claude/hooks/guardrail-woob.py
+<proyecto>/.claude/settings.json      <- se le agregan los hooks, se conserva el resto
+```
+
+**Paso 3 — verificar** (no lo saltes: sin esto no sabes si quedó funcionando):
+
+```bash
+python3 ~/.claude/skills/woob-security/pruebas.py | tail -3
+```
+
+Tiene que decir `Todo OK.`
+
+**Paso 4 — decirle esto a la persona, en tus palabras:**
+
+- El hook recién actúa **en la próxima sesión de Claude Code** — hay que
+  reiniciarla.
+- Hay que **commitear `.claude/`** al repo del proyecto, o no le va a llegar a
+  nadie más.
+- Si el proyecto no usa las convenciones de carpeta habituales
+  (`components/`, `styles/`, `content/`…), **va a avisar demasiado**. En ese
+  caso hay que ajustar `SEGURA_CARPETA` en `hooks/guardrail-woob.py`. Un
+  guardrail que grita siempre es ruido y la gente lo aprende a ignorar.
+- Esto **no reemplaza** branch protection ni permisos de base de datos:
+  ver [RIESGOS.md](RIESGOS.md).
+
+**Si algo falla:**
+
+| Síntoma | Causa | Qué hacer |
+|---|---|---|
+| `python3: command not found` | No hay Python | Instalarlo. Sin él el hook **falla abierto** y no avisa nada. |
+| El hook no dispara | La sesión no se reinició | Reiniciar Claude Code. |
+| El hook no dispara | `settings.json` sin el bloque `hooks` | Volver a correr `instalar.sh`. |
+| Avisa en todo | Convenciones distintas | Ajustar `SEGURA_CARPETA`. |
+
+**No hagas esto:** no edites el `settings.json` del proyecto a mano para
+agregar los hooks — usa `instalar.sh`, que hace el merge sin romper los
+permisos que ya estén configurados.
+
+---
+
+## Instalar a mano
 
 **En un proyecto** (lo normal — así le llega a quien vaya a editarlo):
 
 ```bash
-git clone https://github.com/<usuario>/woob-security.git
+git clone https://github.com/primerosresultados/woob-security.git
 cd woob-security
 ./instalar.sh /ruta/a/tu/proyecto
 ```
@@ -38,7 +108,7 @@ funciona en la máquina de la otra persona.
 **En todas tus sesiones** (el repo es una skill, se clona y ya):
 
 ```bash
-git clone https://github.com/<usuario>/woob-security.git ~/.claude/skills/woob-security
+git clone https://github.com/primerosresultados/woob-security.git ~/.claude/skills/woob-security
 ```
 
 Ojo: así solo tienes la skill, no el hook. El hook se instala por proyecto,
