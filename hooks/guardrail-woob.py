@@ -785,15 +785,26 @@ NOMBRE_ZONA = {
 }
 
 
+# Cosas que no dejan nada que releer: cuando terminan, ya está hecho.
+ZONAS_SIN_RASTRO = {"comando", "script", "eval", "mcp", "destructivo"}
+
+
 def revision_final(session_id):
-    """Lee los archivos tocados y devuelve (errores, zonas)."""
+    """Lee los archivos tocados. Devuelve (errores, zonas, sin_revisar)."""
     datos = estado(session_id)
-    errores, zonas, vistos = [], {}, set()
+    errores, zonas, sin_revisar, vistos = [], {}, [], set()
 
     for entrada in datos.get("bitacora", []):
         zona, que, ruta = entrada.get("zona"), entrada.get("que"), entrada.get("ruta")
         if zona != "segura":
             zonas.setdefault(zona, []).append(que)
+
+        # Un comando que ya corrió o una herramienta externa no dejan archivo
+        # que revisar. Hay que decirlo, no callarlo.
+        if not ruta and (zona in ZONAS_SIN_RASTRO or not os.path.sep in (que or "")):
+            if que not in [x["que"] for x in sin_revisar]:
+                sin_revisar.append({"zona": zona, "que": que})
+            continue
 
         if not ruta or ruta in vistos or not os.path.isfile(ruta):
             continue
@@ -810,45 +821,61 @@ def revision_final(session_id):
             if patron.search(texto):
                 errores.append({"archivo": que, "problema": problema, "consejo": consejo})
 
-    return errores, zonas
+    return errores, zonas, sin_revisar
 
 
-def informe_final(errores, zonas):
-    lineas = []
+def informe_final(errores, zonas, sin_revisar):
+    lineas = ["🔎  REVISIÓN FINAL", ""]
+
     if errores:
-        lineas += [
-            "🔎  REVISIÓN FINAL — encontré cosas que hay que mirar antes de dar",
-            "    esto por terminado:",
-            "",
-        ]
+        lineas += ["Encontré esto en los archivos, hay que mirarlo antes de dar el",
+                   "trabajo por terminado:", ""]
         for e in errores:
-            lineas += [f"  ✗  {e['archivo']}", f"     {e['problema']}",
+            lineas += [f"  ✗  {e['archivo']}",
+                       f"     {e['problema']}",
                        f"     → {e['consejo']}", ""]
     else:
-        lineas += ["🔎  REVISIÓN FINAL — no encontré errores en lo que quedó escrito.", ""]
+        lineas += ["Revisé los archivos que quedaron escritos y no encontré ninguno",
+                   "de los errores que sé buscar.", ""]
+
+    if sin_revisar:
+        lineas += ["ESTO NO LO PUDE REVISAR, porque ya se ejecutó y no deja nada que",
+                   "releer. Si algo salió mal acá, no hay forma de detectarlo desde",
+                   "afuera:", ""]
+        for x in sin_revisar[:8]:
+            lineas.append(f"  ?  {x['que']}")
+        lineas.append("")
 
     if zonas:
-        lineas += ["Se tocaron estas zonas fuera de lo seguro:", ""]
+        lineas += ["Zonas que se tocaron, fuera de lo seguro:", ""]
         for zona, ques in zonas.items():
-            nombre = NOMBRE_ZONA.get(zona, zona)
-            lineas.append(f"  • {nombre}")
+            lineas.append(f"  • {NOMBRE_ZONA.get(zona, zona)}")
             for q in sorted(set(ques))[:6]:
                 lineas.append(f"      {q}")
+            if len(set(ques)) > 6:
+                lineas.append(f"      … y {len(set(ques)) - 6} más")
         lineas.append("")
 
     lineas += [
         "─" * 68,
-        "ANTES DE TERMINAR, dile esto a la persona en lenguaje común y sin",
-        "palabras técnicas:",
+        "ANTES DE TERMINAR, escríbele a la persona un cierre corto, en lenguaje",
+        "común y sin palabras técnicas, con esto:",
         "",
-        "  1. Qué cambiaste, archivo por archivo, en una línea cada uno.",
-        "  2. Los problemas de arriba, si los hay, y si los arreglaste o no.",
-        "  3. Qué tiene que revisar ella misma para confirmar que quedó bien.",
+        "  1. Qué cambiaste, archivo por archivo, una línea cada uno.",
+        "  2. Los problemas de arriba: cuáles arreglaste y cuáles no.",
+        "     Si arreglaste alguno, dilo igual — no lo calles porque ya está.",
+        "  3. Lo que no se pudo revisar, si lo hay, y qué debería mirar ella",
+        "     misma para confirmar que quedó bien.",
         "  4. Cómo se vuelve atrás si algo sale mal.",
-        "  5. Si tocó la información de los clientes: que conviene avisarle al",
-        f"     {CONTACTO} antes de que esto salga al sitio en vivo.",
+        "  5. Si se tocó la información de los clientes: que conviene avisarle",
+        f"     al {CONTACTO} antes de que esto salga al sitio en vivo.",
+        "  6. Qué del trabajo NO se pudo hacer, si quedó algo pendiente.",
         "",
-        "No repitas este texto tal cual: escríbelo tú, corto y en simple.",
+        "Y sé honesto con el alcance: que esta revisión no encuentre nada",
+        "significa que no encontré lo que sé buscar, no que el trabajo esté",
+        "bien. Un error de lógica o un permiso mal puesto no los ve nadie acá.",
+        "",
+        "No copies este texto: escríbelo tú, corto y en simple.",
     ]
     return "\n".join(lineas)
 
@@ -869,11 +896,11 @@ def main():
     if evento == "Stop":
         if datos.get("stop_hook_active"):
             sys.exit(0)          # ya se informó en esta vuelta, no repetir
-        errores, zonas = revision_final(session_id)
-        if not errores and not zonas:
+        errores, zonas, sin_revisar = revision_final(session_id)
+        if not errores and not zonas and not sin_revisar:
             sys.exit(0)          # trabajo limpio: no molestar
         print(json.dumps({"decision": "block",
-                          "reason": informe_final(errores, zonas)}))
+                          "reason": informe_final(errores, zonas, sin_revisar)}))
         sys.exit(0)
 
     if tool_name == "Bash":

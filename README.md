@@ -245,9 +245,28 @@ Qué busca en lo que quedó escrito:
 | Un registro que imprime una clave | La clave queda escrita en los registros del sistema |
 | La llave maestra de la base de datos en una pantalla | Esa llave se salta todos los permisos |
 
-Y lista las zonas que se tocaron, en simple, para el informe.
+Y separa lo que **no pudo revisar**: los comandos que ya corrieron y las
+herramientas externas que ya escribieron. Eso no deja archivo que releer, así
+que el reporte lo dice en vez de callarlo:
 
-Si no encuentra nada y no se tocó nada sensible, **no dice nada**.
+```
+ESTO NO LO PUDE REVISAR, porque ya se ejecutó y no deja nada que
+releer. Si algo salió mal acá, no hay forma de detectarlo desde
+afuera:
+
+  ?  npx prisma migrate deploy
+  ?  npm install zod
+  ?  lead_guardar
+```
+
+Después lista las zonas tocadas, en simple, y le pide al modelo un cierre con
+seis cosas: qué cambió, qué problemas había y cuáles arregló, qué no se pudo
+revisar, cómo volver atrás, si hay que avisarle a Woob, y qué quedó pendiente.
+
+Y le exige ser honesto con el alcance: **que la revisión no encuentre nada
+significa que no encontró lo que sabe buscar, no que el trabajo esté bien.**
+
+Si no hay nada que decir, **no dice nada**.
 
 ```
 Esto es lo que voy a hacer:

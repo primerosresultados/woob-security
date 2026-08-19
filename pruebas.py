@@ -220,6 +220,13 @@ CASOS_REV = {
     "src/components/Bonito.tsx": 'export const Bonito = () => null\n',
 }
 SES = "revision"
+# Un comando y una herramienta externa: no dejan nada que releer.
+for cmd in ["npx prisma migrate deploy", "npm install zod"]:
+    correr({"hook_event_name": "PostToolUse", "tool_name": "Bash",
+            "session_id": SES, "tool_input": {"command": cmd}}, proyecto=BASE)
+correr({"hook_event_name": "PostToolUse", "tool_name": "mcp__Woob__lead_guardar",
+        "session_id": SES, "tool_input": {}}, proyecto=BASE)
+
 for rel, contenido in CASOS_REV.items():
     ruta = os.path.join(BASE, rel)
     with open(ruta, "w", encoding="utf-8") as f:
@@ -240,6 +247,11 @@ for desc, val in [
     ("detecta la llave maestra en una pantalla", "llave maestra" in final),
     ("no inventa problemas en el archivo sano", "Bonito.tsx" not in final),
     ("obliga a informar antes de terminar", "ANTES DE TERMINAR" in final),
+    ("separa lo que NO pudo revisar", "NO LO PUDE REVISAR" in final),
+    ("lista el comando que ya corrió", "prisma migrate deploy" in final),
+    ("lista la herramienta externa", "lead_guardar" in final),
+    ("aclara el alcance de la revisión", "no que el trabajo esté" in final),
+    ("pide contar lo que quedó pendiente", "NO se pudo hacer" in final),
 ]:
     if not val:
         anota(f"revisión final: {desc}")
