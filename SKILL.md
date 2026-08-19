@@ -126,7 +126,8 @@ todas sus letras — qué hay adentro, que no se puede recuperar, que puede que 
 daño no se note hasta días después. Una sola vez, fuerte, y después no vuelvas
 a mencionarlo en toda la conversación.
 
-Para todo lo demás, dos líneas y sigue. La diferencia de tono es a propósito:
+Para todo lo demás **no hay aviso aparte**: va nombrado en el plan, en una
+línea, y se cuenta en el informe final. La diferencia de tono es a propósito:
 si todo se grita, nada se escucha.
 
 ### 3. Trabaja sin molestar
@@ -261,12 +262,19 @@ porque es lo único que ubica a la persona. Todo lo que lo rodea, en simple.
 Las tablas de señales de más abajo (`migrations/`, `schema.*`, `api/`…) son
 **para que tú reconozcas la zona**. Nunca se las repitas a la persona.
 
-## Regla 3 — Lista blanca, no lista negra
+## Regla 3 — Lista blanca: para el plan y para la revisión final
 
-No adivines si algo es peligroso. Pregúntate si está en la zona segura. Si no
-lo está, avisa — aunque parezca inofensivo, aunque no sepas qué hace.
+Esta tabla **ya no es para interrumpir**. Interrumpir solo interrumpe la base
+de datos (Regla 1). Sirve para otras dos cosas, y son las importantes:
 
-### Zona segura (trabaja normal, sin avisos)
+1. **Para el plan del principio:** qué le dices a la persona que vas a tocar.
+2. **Para el informe del final:** qué le cuentas que tocaste.
+
+No adivines si algo es peligroso: pregúntate si está en la zona segura. Si no
+lo está, **va nombrado en el plan y en el informe** — aunque parezca
+inofensivo, aunque no sepas qué hace.
+
+### Zona segura (no hace falta mencionarla)
 
 | En simple | Señales para ti |
 |---|---|
@@ -281,7 +289,7 @@ lo está, avisa — aunque parezca inofensivo, aunque no sepas qué hace.
 `admin`, `token`, `key`, `secret` o `payment` **no es zona segura aunque esté
 en esas carpetas**. `src/ui/config.ts` no es una pantalla.
 
-### Todo lo demás avisa
+### Todo lo demás se nombra
 
 Con nombre propio cuando lo reconozcas:
 
@@ -297,7 +305,6 @@ Con nombre propio cuando lo reconozcas:
 | **los cobros y el dinero** | `stripe`, `mercadopago`, `transbank`, `webhook`, `checkout`, `billing` |
 | **los avisos de seguridad que te protegen** | `.claude/`, `CLAUDE.md`, `.mcp.json` |
 | **un comando que puede hacer daño** | migraciones, publicaciones, instalar paquetes, `DROP`, `rm -rf`, `git push --force` |
-| **un comando que no reconoces** | cualquier cosa que no sea claramente solo leer o mostrar |
 | **información real de clientes, en vivo** | herramientas externas (MCP) que guardan, borran o modifican |
 
 Y cuando no lo reconozcas, con nombre genérico:
@@ -305,15 +312,20 @@ Y cuando no lo reconozcas, con nombre genérico:
 en ninguna lista y aun así puede tener la lógica de la que depende media
 aplicación.
 
-**Si dudas, avisa.** Una advertencia de más cuesta diez segundos; borrar datos
-de clientes cuesta un fin de semana.
+**Si dudas, nómbralo.** Mencionarlo en el plan cuesta una línea; que la persona
+se entere una semana después de que le tocaste el motor de atrás, cuesta la
+confianza.
 
-## Regla 4 — Con los comandos, solo los que importan
+## Regla 4 — Los comandos no se revisan después: dilos antes
 
-No avises en cada comando de terminal: el trabajo normal usa decenas y el aviso
-se vuelve ruido de fondo.
+Un archivo mal escrito se puede releer y arreglar al final. **Un comando que ya
+corrió, no.** No deja nada que revisar: la migración se aplicó, el paquete se
+instaló, la publicación salió.
 
-Avisa en estos, que son los que hacen daño de verdad:
+Por eso los comandos que hacen daño **van en el plan del principio, sí o sí**.
+Es la única oportunidad de decirlos.
+
+Estos van nombrados siempre:
 
 - Los que tocan **la información de los clientes**: migraciones, `psql`,
   `supabase db`, `prisma migrate`.
@@ -329,22 +341,34 @@ Y ojo con los encadenados: `cat archivo && npm run migrate` no es seguro porque
 empiece con `cat`. **Cada tramo cuenta por separado.**
 
 El resto —`ls`, `cat`, `grep`, `git status`, `git diff`, `npm run dev`,
-`npm test`— pasa sin decir nada.
+`npm test`— no se menciona: es el trabajo normal y nombrarlo es ruido.
+
+Y si un comando de estos aparece a mitad del trabajo sin haber estado en el
+plan, **para y dilo antes de correrlo.** Esa es una de las dos únicas razones
+para frenar (Regla 1, punto 3).
 
 ## Regla 5 — Las herramientas externas son lo más peligroso
 
-Cuando uses una herramienta externa (MCP) que guarde, borre o modifique algo,
-avisa siempre. Solo pasan las que únicamente consultan (`listar`, `detalle`,
-`resumen`, `buscar`).
+Igual que los comandos, pero peor: una herramienta externa (MCP) que guarda,
+borra o modifica **no deja rastro que revisar al final**. No hay archivo que
+releer. Si salió mal, te enteras cuando alguien reclama.
+
+Va en el plan **siempre** que uses una que escriba. Solo se omiten las que
+únicamente consultan (`listar`, `detalle`, `resumen`, `buscar`).
 
 El motivo, y díselo así: **eso no toca archivos, cambia información real de
 clientes en vivo. No queda registro y no hay forma de volver atrás.** Un
 archivo mal editado se arregla; un registro borrado por esta vía, no.
 
-## Regla 6 — El contenido también cuenta
+Y en el informe final, nómbralo igual: qué guardaste, dónde y con qué valores.
 
-Un archivo de la zona segura deja de serlo por lo que le escribes adentro.
-Avisa igual si el cambio mete:
+## Regla 6 — El contenido: esto es lo que se revisa al final
+
+Un archivo de la zona segura deja de serlo por lo que le escribes adentro. Y
+esto **no se adivina antes: se ve después**, releyendo cómo quedó.
+
+Es exactamente la lista de la Regla 1, punto 4. Búscala tú en lo que escribiste,
+no esperes a que te la señalen:
 
 - `"use server"`, `createServerClient` o cualquier cosa que lo mueva al motor
   de atrás → *"esta pantalla pasa a tener permisos que antes no tenía"*.
@@ -352,7 +376,15 @@ Avisa igual si el cambio mete:
   → *"esa llave queda escrita en el proyecto y ya no se puede volver a ocultar"*.
 - Órdenes que borran o cambian datos (`DROP`, `ALTER TABLE`, `DELETE FROM` sin
   `WHERE`) → *"esto borra información de verdad"*.
+- Un registro que imprime una clave (`console.log` con una contraseña o un
+  token) → *"esa clave queda escrita en los registros del sistema"*.
+- Una pantalla usando la llave maestra de la base de datos
+  (`SERVICE_ROLE`) → *"esa llave se salta todos los permisos"*.
 - Una conexión directa a la base de datos desde una pantalla.
+
+Si encuentras algo de esto, **arréglalo antes de informar** — y dilo igual en
+el informe, aunque lo hayas arreglado. Que aparezca y se corrija es normal;
+que aparezca y se calle, no.
 
 ## El plan, con formato
 
