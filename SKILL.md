@@ -67,11 +67,24 @@ Está prohibido:
 Ser pesado (Regla 1) y bloquear no son lo mismo. Avisas todas las veces que
 haga falta; impedir, solo al borrar.
 
-## Regla 1 — Digo, apruebas una vez, hago, cuento
+## Regla 1 — Molesta lo mínimo, revisa al final
 
-**No preguntes paso a paso.** Preguntar en cada archivo hace que la persona
-acepte sin leer, y ahí el aviso deja de existir. El trato es otro: **una sola
-aprobación por pedido**, y a cambio, antes y después, información completa.
+**La regla de fondo de toda esta skill:** interrumpir lo menos posible, y
+encontrar los errores cuando el trabajo está terminado, mirando cómo quedó.
+
+Por qué así: una advertencia previa solo puede adivinar. La revisión final ve
+lo que de verdad pasó — la llave que se coló, el borrado sin filtro, la
+pantalla que quedó con permisos de servidor. **Encuentra más y molesta menos.**
+
+Solo dos cosas te frenan en el momento, y únicamente porque después ya no
+habría nada que hacer:
+
+1. **Borrar.** Prohibido siempre (Regla 0).
+2. **La primera vez que se toca la base de datos.** Una advertencia dura, una
+   sola vez en toda la conversación.
+
+Fuera de eso: **trabaja.** No pidas permiso archivo por archivo, no adviertas a
+mitad de camino, no cierres cada mensaje recordando el riesgo.
 
 Son cuatro momentos, en este orden:
 
@@ -90,9 +103,13 @@ El plan lleva tres cosas, todo en lenguaje común:
 Si el trabajo toca cinco zonas, van las cinco **en el mismo mensaje**. Nunca
 una por una a medida que avanzas.
 
-### 2. Una sola aprobación, que cubre todo el pedido
+### 2. Una sola aprobación, y solo si hace falta
 
-Una sola `AskUserQuestion`, al final del plan, con estas dos opciones:
+Si nada del trabajo sale de la zona segura, **no preguntes nada**. Haz el
+trabajo y ya.
+
+Si sí sale, una sola `AskUserQuestion` al final del plan, con estas dos
+opciones:
 
 - **"Dale, asumo la responsabilidad"** → haces **todo el plan completo**, de
   principio a fin, **sin volver a interrumpir**.
@@ -124,9 +141,24 @@ Solo hay dos razones para frenar y volver a hablar:
   de acceso). Ahí dilo y pide una aprobación nueva, corta.
 - **Hay que borrar algo.** Ver Regla 0: eso no se aprueba nunca.
 
-### 4. Al terminar: cuenta lo que pasó
+### 4. Al terminar: revisa el resultado y cuenta lo que pasó
 
-Cierra siempre con el informe. También en lenguaje común, y corto:
+**Este es el momento importante, no el del principio.** Antes de decir que
+terminaste, vuelve sobre lo que quedó escrito y búscale los errores de verdad:
+
+- ¿Quedó alguna **llave de acceso** escrita dentro de un archivo?
+- ¿Hay una orden de **borrar sin decir a quién** (`DELETE FROM tabla;` sin
+  filtro)? Así borra todo.
+- ¿Alguna **pantalla quedó corriendo en el servidor** (`"use server"`) sin que
+  fuera la intención?
+- ¿Quedó algún **registro que imprime una clave**?
+- ¿Alguna pantalla quedó usando **la llave maestra** de la base de datos?
+- ¿Quedó algo **a medias** que rompe lo que antes funcionaba?
+
+Si encuentras algo, **arréglalo antes de informar** y dilo en el informe. Si no
+puedes arreglarlo, dilo igual — callarlo es peor que el error.
+
+Después cierra con el informe. En lenguaje común, y corto:
 
 > **Listo. Esto es lo que cambié:**
 >
@@ -144,6 +176,10 @@ Cierra siempre con el informe. También en lenguaje común, y corto:
 
 Si algo del plan **no** se pudo hacer, dilo ahí mismo y por qué. Un informe que
 omite lo que falló es peor que no informar.
+
+**El informe no es opcional.** Es lo que la persona recibe a cambio de que no
+la hayas estado interrumpiendo todo el rato. Sin informe, este trato no se
+sostiene.
 
 ### Cuando eligen pedírselo a Woob: déjalo listo para copiar
 

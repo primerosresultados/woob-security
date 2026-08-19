@@ -69,11 +69,28 @@ un permiso del sistema. Todo lo de arriba se arregla en el servidor, no acá.
   Si pasa: ajustar `SEGURA_CARPETA` a las convenciones del proyecto antes de
   bajar el nivel.
 
-- **Dos avisos en toda la sesión, y después nada.** El de base de datos y el
-  general. Es lo pedido explícitamente: molestar poco. El costo es directo — si
-  la primera vez que se toca la base de datos era algo inocente y la segunda
-  era una migración destructiva, **la segunda pasa callada**. La única red que
-  queda ahí es el bloqueo de eliminaciones.
+- **Una sola interrupción en toda la sesión.** La primera vez que se toca la
+  base de datos. Es lo pedido explícitamente: molestar lo mínimo. El costo es
+  directo — si la primera vez era algo inocente y la segunda es una migración
+  destructiva, **la segunda pasa callada**. Las redes que quedan son el bloqueo
+  de eliminaciones y la revisión final.
+
+- **La revisión final llega tarde por definición.** Encuentra el error cuando
+  ya está escrito en el archivo. Eso está bien para una llave filtrada o un
+  `DELETE` sin filtro (se arreglan antes de guardar el trabajo), y está mal
+  para todo lo que ya se ejecutó: un comando que corrió, una migración
+  aplicada, un dato que se envió. **Para eso no hay vuelta atrás y la revisión
+  final no sirve.**
+
+- **La revisión final solo lee archivos.** No mira lo que hicieron los comandos
+  ni las herramientas externas. Un `psql` que ya corrió no deja rastro que
+  revisar.
+
+- **Solo busca los errores que sabe buscar.** La lista de `REVISIONES` en el
+  hook es finita: llaves filtradas, borrados sin filtro, `use server`, claves
+  impresas, llave maestra. Un error de lógica de negocio, un cálculo mal hecho
+  o un permiso mal puesto **no los ve nadie**. Que la revisión no diga nada
+  significa "no encontré lo que sé buscar", no "está bien".
 
 - **Una aprobación abre todo el pedido. Este es el trade-off más grande del
   diseño.** Si la persona aprueba un plan que decía "voy a tocar el schema" y
@@ -99,9 +116,14 @@ un permiso del sistema. Todo lo de arriba se arregla en el servidor, no acá.
   `docker compose up`, `ssh servidor`, `npx tsx script.ts` no avisan. Si te
   importa cubrir eso, `WOOB_GUARDRAIL_NIVEL=estricto`.
 
-- **El informe final lo escribe el modelo, no el hook.** El hook deja anotado
-  qué se tocó (en el archivo de estado en `/tmp`), pero quien redacta el cierre
-  es la skill. Si el modelo se olvida de cerrar, no hay nada que lo fuerce.
+- **El informe final lo escribe el modelo, no el hook.** El hook detecta y
+  obliga a continuar (`decision: block`), pero quien redacta el cierre en
+  lenguaje común es la skill. El hook garantiza que el modelo *reciba* los
+  hallazgos, no que los cuente bien.
+
+- **El hook `Stop` no corre si la sesión se corta.** Si se cierra la ventana o
+  se interrumpe con Escape a mitad, no hay revisión final. Lo que quedó
+  escrito, quedó escrito y nadie lo miró.
 - **Falsos negativos silenciosos.** Cuando el guardrail no avisa, no dice
   "revisé y está bien". Dice "no lo reconocí". No son lo mismo.
 - **Advertir no es impedir.** Por diseño. La persona puede aceptar todo. El

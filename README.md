@@ -6,11 +6,15 @@
 Guardrail para cuando dejas que alguien externo edite el código de un proyecto
 en producción.
 
-No pregunta paso a paso. **Explica el plan, pide una sola aprobación por
-pedido, trabaja sin interrumpir, y al terminar cuenta qué pasó** — todo en
-palabras que cualquiera entiende.
+**Molesta lo mínimo mientras se trabaja, y revisa el resultado al final.**
 
-Con una sola excepción: **borrar está prohibido y no se puede aceptar.**
+Una advertencia previa solo puede adivinar. La revisión final ve lo que de
+verdad pasó: la llave que se coló, el borrado sin filtro, la pantalla que quedó
+con permisos de servidor. **Encuentra más y molesta menos.**
+
+Solo dos cosas frenan en el momento, porque después ya no habría nada que
+hacer: **borrar** (prohibido, no se puede aceptar) y **la primera vez que se
+toca la base de datos** (una advertencia dura, una sola vez).
 
 ```
 ⚠️  Fuera de la zona segura
@@ -216,14 +220,9 @@ rato, se acepta sin leer y es como si no existiera. Por eso el trato es otro —
 eso sale de la zona segura, qué puede salir mal, y cómo se vuelve atrás. Todo
 junto, en un mensaje.
 
-**2. Una aprobación, y no molesta más.** Hay exactamente **dos** interrupciones
-en toda la conversación:
-
-- La primera vez que se toca **la base de datos**: aviso duro, sin rodeos.
-- La primera vez que se toca **cualquier otra cosa** fuera de la zona segura:
-  dos líneas y sigue.
-
-Después de cada una, esa categoría no vuelve a interrumpir. Nunca.
+**2. Una aprobación, y solo si toca la base de datos.** Es la única
+interrupción de todo el trabajo, y ocurre una vez en la conversación. El resto
+—backend, llaves, infraestructura, dependencias— pasa callado y queda anotado.
 
 **3. Trabaja sin molestar.** Nada de recordar el riesgo a mitad de camino ni
 cerrar cada mensaje con una advertencia.
@@ -231,8 +230,24 @@ cerrar cada mensaje con una advertencia.
 Solo frena si aparece algo más grave que no estaba en el plan, o si hay que
 borrar (eso no se aprueba nunca).
 
-**4. Al terminar, cuenta lo que pasó.** Qué cambió, qué conviene revisar, cómo
-volver atrás, y qué del plan no se pudo hacer.
+**4. Al terminar, revisa el resultado.** Acá está el grueso del valor: el hook
+vuelve a leer los archivos como quedaron y busca errores de verdad. Si
+encuentra algo, obliga a informarlo antes de dar el trabajo por terminado.
+
+Qué busca en lo que quedó escrito:
+
+| Lo que encuentra | Por qué importa |
+|---|---|
+| Una llave de acceso escrita dentro de un archivo | Una vez que entra al proyecto, queda a la vista para siempre |
+| `DELETE FROM tabla;` sin filtro | Borra todos los registros, no unos pocos |
+| `DROP` o `TRUNCATE` | Elimina información completa |
+| Una pantalla con `"use server"` | Le da permisos que antes no tenía |
+| Un registro que imprime una clave | La clave queda escrita en los registros del sistema |
+| La llave maestra de la base de datos en una pantalla | Esa llave se salta todos los permisos |
+
+Y lista las zonas que se tocaron, en simple, para el informe.
+
+Si no encuentra nada y no se tocó nada sensible, **no dice nada**.
 
 ```
 Esto es lo que voy a hacer:

@@ -10,20 +10,28 @@ lo desconocido se trata como riesgoso, no como inofensivo.
 NO bloquea nunca. Devuelve permissionDecision="ask": Claude Code muestra la
 advertencia y pide confirmación. Si la persona acepta, el cambio se hace igual.
 
-Interrumpe lo mínimo. Dos avisos en toda la sesión, y después silencio:
+La regla de fondo: **interrumpir lo menos posible, revisar al final.**
 
-  1. La primera vez que se toca la BASE DE DATOS: advertencia dura, sin
-     rodeos. Es la única que se grita.
-  2. La primera vez que se toca cualquier otra cosa fuera de la zona segura:
-     un aviso corto.
+Durante el trabajo casi no molesta. Solo dos cosas frenan en el momento, y
+porque después ya no habría nada que hacer:
 
-Después de cada uno, esa categoría no vuelve a interrumpir en toda la sesión.
-Borrar sigue prohibido siempre, eso no se aprueba nunca.
+  1. BORRAR: prohibido siempre. Si se deja pasar, ya no se recupera.
+  2. La primera vez que se toca la BASE DE DATOS: advertencia dura, una sola
+     vez en toda la sesión.
+
+Todo lo demás pasa callado y queda anotado. Cuando el trabajo TERMINA, se
+revisa el resultado de verdad —leyendo los archivos como quedaron— y se informa
+qué se tocó y qué se ve mal. Revisar el resultado encuentra cosas que ninguna
+advertencia previa podía saber.
 
 Eventos:
   UserPromptSubmit -> arranca la bitácora del pedido nuevo.
-  PreToolUse       -> avisa solo si esa categoría todavía no avisó.
-  PostToolUse      -> anota qué se tocó, para el informe final.
+  PreToolUse       -> solo frena por borrado y por la primera vez en la base
+                      de datos. Lo demás pasa y queda anotado.
+  PostToolUse      -> anota qué se tocó.
+  Stop             -> revisión final: lee los archivos tocados, busca errores
+                      y obliga a informarlos antes de dar el trabajo por
+                      terminado.
 """
 
 import json
@@ -467,13 +475,28 @@ def revisar_comando(cmd):
             return clave, etiqueta, corto, riesgos
 
     # Escritura por shell sobre un archivo: se evalúa como si fuera un Edit.
-    for destino in ESCRITURA_SHELL.findall(cmd):
+    # `sed -i '' 's/a/b/' archivo` mete argumentos en medio, así que también se
+    # prueba el último token: si no, se clasificaba el guion de sed como archivo.
+    candidatos = list(ESCRITURA_SHELL.findall(cmd))
+    if re.search(r"\bsed\s+-[a-z]*i", cmd, re.IGNORECASE):
+        candidatos.append(cmd.split()[-1])
+
+    mejor = None
+    for destino in candidatos:
+        destino = destino.strip("'\"")
         if destino.startswith("/dev/") or destino in ("-", "&1", "&2"):
             continue
         hallazgo = revisar_archivo(destino)
-        if hallazgo:
-            clave, etiqueta, rel, riesgos = hallazgo
-            return clave, etiqueta, f"{rel} (por shell)", riesgos
+        if not hallazgo:
+            continue
+        clave, etiqueta, rel, riesgos = hallazgo
+        candidato = (clave, etiqueta, f"{rel} (por shell)", riesgos)
+        # Una zona con nombre pesa más que "no lo reconozco".
+        if clave != "desconocida":
+            return candidato
+        mejor = mejor or candidato
+    if mejor:
+        return mejor
 
     # Cada tramo por separado: "cat x && npm run migrate" no es seguro solo
     # porque empiece con `cat`.
@@ -567,13 +590,11 @@ def nuevo_pedido(session_id):
 ZONAS_BD = {"db", "schema"}
 
 
-def anotar(session_id, clave, objetivo):
+def anotar(session_id, clave, objetivo, ruta_abs=""):
     datos = estado(session_id)
     if clave in ZONAS_BD:
         datos["db_avisado"] = True
-    else:
-        datos["general_avisado"] = True
-    entrada = {"zona": clave, "que": objetivo}
+    entrada = {"zona": clave, "que": objetivo, "ruta": ruta_abs}
     if entrada not in datos["bitacora"]:
         datos["bitacora"].append(entrada)
     guardar_estado(session_id, datos)
@@ -705,6 +726,133 @@ def mensaje_prohibido(etiqueta, objetivo, riesgos):
     return "\n".join(lineas)
 
 
+# ============================================================ revisión final
+# Lo que se mira DESPUÉS, con los archivos ya escritos. Acá se encuentran cosas
+# que ninguna advertencia previa podía saber, porque dependen del resultado.
+REVISIONES = [
+    (
+        re.compile(r"(sk_live_|rk_live_|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,}|"
+                   r"xox[baprs]-|-----BEGIN [A-Z ]*PRIVATE KEY-----|"
+                   r"eyJhbGciOi[A-Za-z0-9_-]{30,})"),
+        "quedó una llave de acceso escrita dentro del archivo",
+        "sácala de ahí antes de guardar el trabajo: una vez que entra al "
+        "proyecto queda a la vista para siempre",
+    ),
+    (
+        re.compile(r"\bdelete\s+from\s+\w+\s*(;|$)", re.I | re.M),
+        "hay una orden de borrar que no dice a QUIÉN borrar",
+        "así escrita borra todos los registros de esa tabla, no unos pocos",
+    ),
+    (
+        re.compile(r"\b(drop|truncate)\s+(table|database|schema)\b", re.I),
+        "hay una orden que elimina información completa",
+        "revisa si de verdad era eso lo que querías",
+    ),
+    (
+        re.compile(r"""^\s*['"]use server['"]""", re.M),
+        "una pantalla quedó corriendo en el servidor",
+        "eso le da permisos que antes no tenía: confirma que era a propósito",
+    ),
+    (
+        re.compile(r"\bconsole\.log\s*\([^)]*\b(password|token|secret|apiKey|"
+                   r"api_key|clave|contrasena)\b", re.I),
+        "quedó un registro que imprime una clave",
+        "eso deja la clave escrita en los registros del sistema",
+    ),
+    (
+        re.compile(r"\b(SUPABASE_SERVICE_ROLE|SERVICE_ROLE_KEY)\b"),
+        "una pantalla quedó usando la llave maestra de la base de datos",
+        "esa llave se salta todos los permisos: no debe salir del servidor",
+    ),
+]
+
+# Zonas que conviene nombrar en el informe final, en simple.
+NOMBRE_ZONA = {
+    "db": "dónde se guarda la información de los clientes",
+    "schema": "cómo está organizada la información",
+    "backend": "el motor que hace funcionar todo por detrás",
+    "auth": "quién puede entrar y qué puede ver cada persona",
+    "secretos": "las llaves de acceso del sistema",
+    "pagos": "los cobros y el dinero",
+    "infra": "lo que mantiene el sitio en línea",
+    "build": "las piezas que el proyecto necesita para armarse",
+    "guardrail": "los avisos de seguridad",
+    "mcp": "información real de clientes, en vivo",
+    "comando": "un comando de terminal",
+    "script": "un atajo del proyecto",
+    "eval": "una escritura indirecta de archivos",
+    "desconocida": "un archivo fuera de la zona segura",
+}
+
+
+def revision_final(session_id):
+    """Lee los archivos tocados y devuelve (errores, zonas)."""
+    datos = estado(session_id)
+    errores, zonas, vistos = [], {}, set()
+
+    for entrada in datos.get("bitacora", []):
+        zona, que, ruta = entrada.get("zona"), entrada.get("que"), entrada.get("ruta")
+        if zona != "segura":
+            zonas.setdefault(zona, []).append(que)
+
+        if not ruta or ruta in vistos or not os.path.isfile(ruta):
+            continue
+        vistos.add(ruta)
+        try:
+            if os.path.getsize(ruta) > 2_000_000:
+                continue
+            with open(ruta, "r", encoding="utf-8", errors="ignore") as f:
+                texto = f.read()
+        except OSError:
+            continue
+
+        for patron, problema, consejo in REVISIONES:
+            if patron.search(texto):
+                errores.append({"archivo": que, "problema": problema, "consejo": consejo})
+
+    return errores, zonas
+
+
+def informe_final(errores, zonas):
+    lineas = []
+    if errores:
+        lineas += [
+            "🔎  REVISIÓN FINAL — encontré cosas que hay que mirar antes de dar",
+            "    esto por terminado:",
+            "",
+        ]
+        for e in errores:
+            lineas += [f"  ✗  {e['archivo']}", f"     {e['problema']}",
+                       f"     → {e['consejo']}", ""]
+    else:
+        lineas += ["🔎  REVISIÓN FINAL — no encontré errores en lo que quedó escrito.", ""]
+
+    if zonas:
+        lineas += ["Se tocaron estas zonas fuera de lo seguro:", ""]
+        for zona, ques in zonas.items():
+            nombre = NOMBRE_ZONA.get(zona, zona)
+            lineas.append(f"  • {nombre}")
+            for q in sorted(set(ques))[:6]:
+                lineas.append(f"      {q}")
+        lineas.append("")
+
+    lineas += [
+        "─" * 68,
+        "ANTES DE TERMINAR, dile esto a la persona en lenguaje común y sin",
+        "palabras técnicas:",
+        "",
+        "  1. Qué cambiaste, archivo por archivo, en una línea cada uno.",
+        "  2. Los problemas de arriba, si los hay, y si los arreglaste o no.",
+        "  3. Qué tiene que revisar ella misma para confirmar que quedó bien.",
+        "  4. Cómo se vuelve atrás si algo sale mal.",
+        "  5. Si tocó la información de los clientes: que conviene avisarle al",
+        f"     {CONTACTO} antes de que esto salga al sitio en vivo.",
+        "",
+        "No repitas este texto tal cual: escríbelo tú, corto y en simple.",
+    ]
+    return "\n".join(lineas)
+
+
 def main():
     datos = leer_entrada()
     evento = datos.get("hook_event_name", "PreToolUse")
@@ -712,9 +860,20 @@ def main():
     tool_input = datos.get("tool_input", {}) or {}
     session_id = datos.get("session_id", "")
 
-    # Mensaje nuevo: la aprobación del pedido anterior deja de valer.
+    # Mensaje nuevo: bitácora limpia para el informe de este pedido.
     if evento == "UserPromptSubmit":
         nuevo_pedido(session_id)
+        sys.exit(0)
+
+    # El trabajo terminó: acá es donde de verdad se buscan los errores.
+    if evento == "Stop":
+        if datos.get("stop_hook_active"):
+            sys.exit(0)          # ya se informó en esta vuelta, no repetir
+        errores, zonas = revision_final(session_id)
+        if not errores and not zonas:
+            sys.exit(0)          # trabajo limpio: no molestar
+        print(json.dumps({"decision": "block",
+                          "reason": informe_final(errores, zonas)}))
         sys.exit(0)
 
     if tool_name == "Bash":
@@ -725,7 +884,8 @@ def main():
         ruta = archivo_de(tool_input)
         cont = contenido_de(tool_input)
         vaciando = (
-            tool_name == "Write"
+            evento == "PreToolUse"
+            and tool_name == "Write"
             and not cont.strip()
             and os.path.exists(ruta)
             and os.path.getsize(ruta) > 0
@@ -733,6 +893,15 @@ def main():
         hallazgo = revisar_archivo(ruta, cont, vaciando)
     else:
         hallazgo = None
+
+    if evento == "PostToolUse":
+        ruta = archivo_de(tool_input)
+        if hallazgo:
+            anotar(session_id, hallazgo[0], hallazgo[2], ruta)
+        elif ruta:
+            # Zona segura: no avisa nada, pero igual se revisa al final.
+            anotar(session_id, "segura", relativizar(ruta), ruta)
+        sys.exit(0)
 
     if not hallazgo:
         sys.exit(0)
@@ -756,18 +925,15 @@ def main():
         )
         sys.exit(0)
 
-    if evento == "PostToolUse":
-        anotar(session_id, clave, objetivo)
+    # Interrumpir lo menos posible: solo la base de datos, y solo la primera
+    # vez. Todo lo demás pasa callado y se revisa al final.
+    if clave not in ZONAS_BD:
         sys.exit(0)
 
-    actual = estado(session_id)
-    es_bd = clave in ZONAS_BD
-
-    # Cada categoría interrumpe una sola vez en toda la conversación.
-    if actual.get("db_avisado" if es_bd else "general_avisado"):
+    if estado(session_id).get("db_avisado"):
         sys.exit(0)
 
-    razon = mensaje_base_de_datos(objetivo) if es_bd else mensaje(etiqueta, objetivo, riesgos)
+    razon = mensaje_base_de_datos(objetivo)
 
     print(
         json.dumps(
