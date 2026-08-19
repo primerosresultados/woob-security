@@ -69,6 +69,12 @@ un permiso del sistema. Todo lo de arriba se arregla en el servidor, no acá.
   Si pasa: ajustar `SEGURA_CARPETA` a las convenciones del proyecto antes de
   bajar el nivel.
 
+- **Dos avisos en toda la sesión, y después nada.** El de base de datos y el
+  general. Es lo pedido explícitamente: molestar poco. El costo es directo — si
+  la primera vez que se toca la base de datos era algo inocente y la segunda
+  era una migración destructiva, **la segunda pasa callada**. La única red que
+  queda ahí es el bloqueo de eliminaciones.
+
 - **Una aprobación abre todo el pedido. Este es el trade-off más grande del
   diseño.** Si la persona aprueba un plan que decía "voy a tocar el schema" y
   después el trabajo termina tocando también las llaves de acceso, el hook ya
@@ -85,10 +91,9 @@ un permiso del sistema. Todo lo de arriba se arregla en el servidor, no acá.
   dispara. Para volver a confirmar paso a paso hay que sacar el chequeo de
   `estado(...).get("aprobado")` en el hook.
 
-- **La aprobación se limpia con el evento `UserPromptSubmit`.** Si ese hook no
-  quedó instalado (settings incompleto), la aprobación **no caduca nunca** y
-  dura toda la sesión. Verificar que `UserPromptSubmit` esté en el
-  `settings.json` del proyecto.
+- **Los avisos ya no caducan con el mensaje nuevo.** `UserPromptSubmit` solo
+  limpia la bitácora del informe; los avisos dados valen para toda la sesión.
+  Reiniciar Claude Code es lo único que los vuelve a activar.
 
 - **Los comandos desconocidos vuelven a pasar** en el nivel por defecto.
   `docker compose up`, `ssh servidor`, `npx tsx script.ts` no avisan. Si te

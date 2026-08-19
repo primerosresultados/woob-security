@@ -10,14 +10,19 @@ lo desconocido se trata como riesgoso, no como inofensivo.
 NO bloquea nunca. Devuelve permissionDecision="ask": Claude Code muestra la
 advertencia y pide confirmación. Si la persona acepta, el cambio se hace igual.
 
-Una sola aprobación por pedido. No se pregunta paso a paso: la primera vez que
-el trabajo sale de la zona segura se pide una aprobación que cubre todo lo que
-venga después, hasta el próximo mensaje de la persona.
+Interrumpe lo mínimo. Dos avisos en toda la sesión, y después silencio:
+
+  1. La primera vez que se toca la BASE DE DATOS: advertencia dura, sin
+     rodeos. Es la única que se grita.
+  2. La primera vez que se toca cualquier otra cosa fuera de la zona segura:
+     un aviso corto.
+
+Después de cada uno, esa categoría no vuelve a interrumpir en toda la sesión.
+Borrar sigue prohibido siempre, eso no se aprueba nunca.
 
 Eventos:
-  UserPromptSubmit -> mensaje nuevo: se borra la aprobación anterior.
-  PreToolUse       -> si ya hay aprobación en este pedido, pasa callado.
-                      Si no, pide UNA aprobación para todo el trabajo.
+  UserPromptSubmit -> arranca la bitácora del pedido nuevo.
+  PreToolUse       -> avisa solo si esa categoría todavía no avisó.
   PostToolUse      -> anota qué se tocó, para el informe final.
 """
 
@@ -541,7 +546,7 @@ def estado(session_id):
             return datos
     except Exception:
         pass
-    return {"aprobado": False, "bitacora": []}
+    return {"db_avisado": False, "general_avisado": False, "bitacora": []}
 
 
 def guardar_estado(session_id, datos):
@@ -553,40 +558,127 @@ def guardar_estado(session_id, datos):
 
 
 def nuevo_pedido(session_id):
-    """Mensaje nuevo de la persona: la aprobación anterior ya no vale."""
-    try:
-        os.remove(ruta_estado(session_id))
-    except OSError:
-        pass
+    """Mensaje nuevo: bitácora limpia. Los avisos ya dados NO se repiten."""
+    datos = estado(session_id)
+    datos["bitacora"] = []
+    guardar_estado(session_id, datos)
+
+
+ZONAS_BD = {"db", "schema"}
 
 
 def anotar(session_id, clave, objetivo):
     datos = estado(session_id)
-    datos["aprobado"] = True
+    if clave in ZONAS_BD:
+        datos["db_avisado"] = True
+    else:
+        datos["general_avisado"] = True
     entrada = {"zona": clave, "que": objetivo}
     if entrada not in datos["bitacora"]:
         datos["bitacora"].append(entrada)
     guardar_estado(session_id, datos)
 
 
-def mensaje(etiqueta, objetivo, riesgos):
+def contexto_proyecto():
+    """Nombre del proyecto y rama, para que el pedido a Woob llegue ubicado."""
+    raiz = os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+    nombre = os.path.basename(raiz.rstrip("/")) or "(sin nombre)"
+    rama = ""
+    try:
+        with open(os.path.join(raiz, ".git", "HEAD"), encoding="utf-8") as f:
+            cabeza = f.read().strip()
+        if cabeza.startswith("ref:"):
+            rama = cabeza.split("/")[-1]
+    except Exception:
+        pass
+    return nombre, rama
+
+
+def pedido_para_woob(etiqueta, objetivo):
+    """Texto listo para copiar y pegarle al Equipo de Woob."""
+    nombre, rama = contexto_proyecto()
     lineas = [
-        "⚠️  Este trabajo sale de la zona segura",
+        "─" * 68,
+        f"PARA PEDÍRSELO AL {CONTACTO.upper()}, CÓPIALES ESTO TAL CUAL:",
         "",
-        f"Mejor solicítaselo al {CONTACTO}, porque estas tocando: "
-        f"{etiqueta} ({objetivo}).",
+        f"  Hola, necesito ayuda con el proyecto {nombre}.",
         "",
-        "Qué puede salir mal:",
+        f"  Qué necesito hacer: [describe en una línea qué querías lograr]",
+        f"  Para qué lo necesito: [por qué lo estás pidiendo]",
+        "",
+        f"  Me avisaron que esto toca {etiqueta},",
+        "  así que prefiero no hacerlo por mi cuenta.",
+        "",
+        f"  Archivo: {objetivo}",
     ]
-    lineas += [f"  • {r}" for r in riesgos]
+    if rama:
+        lineas.append(f"  Rama: {rama}")
     lineas += [
         "",
-        "Esta aprobación cubre TODO este pedido: si dices que sí, sigo hasta el",
-        "final sin volver a interrumpirte, y al terminar te digo exactamente qué",
-        "cambié y qué conviene revisar.",
+        "  Ya intenté: [qué probaste, si probaste algo]",
+        "  Urgencia: [cuándo lo necesitas]",
+        "─" * 68,
         "",
-        f"Si prefieres ir a la segura, pídeselo al {CONTACTO} y no toco nada.",
-        "Si asumes la responsabilidad, apruébalo: la decisión es tuya.",
+        "Completa lo que está entre corchetes antes de mandarlo: sin eso no",
+        "pueden ayudarte y te van a tener que preguntar de vuelta.",
+    ]
+    return "\n".join(lineas)
+
+
+def mensaje_base_de_datos(objetivo):
+    return "\n".join([
+        "🛑  P A R A .   E S T Á S   T O C A N D O   L A   B A S E   D E   D A T O S .",
+        "",
+        "━" * 68,
+        "",
+        f"  {objetivo}",
+        "",
+        "  Ahí adentro está la información REAL de los clientes.",
+        "  Nombres, teléfonos, correos, ventas, cobros. Todo lo que existe.",
+        "",
+        "  Esto no es tu computador. Es el sistema que están usando AHORA MISMO.",
+        "",
+        "━" * 68,
+        "",
+        "SI ESTO SALE MAL:",
+        "",
+        "  ✗  Se pierde información que NO se puede recuperar. No hay deshacer.",
+        "  ✗  No existe un botón para volver atrás. No hay papelera.",
+        "  ✗  Los clientes pierden sus datos, y se dan cuenta.",
+        "  ✗  Puede que nadie note el daño hasta días después, cuando ya es tarde.",
+        "",
+        "━" * 68,
+        "",
+        f"SI TIENES CUALQUIER DUDA — CUALQUIERA — PÍDESELO AL {CONTACTO.upper()}.",
+        "",
+        "  A ellos les toma diez minutos y lo hacen sin riesgo.",
+        "  Recuperar información borrada puede ser imposible.",
+        "",
+        "━" * 68,
+        "",
+        "Si aun así asumes la responsabilidad de lo que pase, apruébalo y sigo.",
+        "Nadie te está bloqueando: la decisión es tuya y queda registrada.",
+        "",
+        "Esta es la única vez que te lo advierto. Después de esto no te vuelvo",
+        "a interrumpir por la base de datos en toda la conversación.",
+        "",
+        pedido_para_woob("dónde se guarda la información de los clientes", objetivo),
+    ])
+
+
+def mensaje(etiqueta, objetivo, riesgos):
+    lineas = [
+        "⚠️  Esto sale de la zona segura",
+        "",
+        f"Vas a tocar {etiqueta} ({objetivo}).",
+    ]
+    lineas += [f"  • {r}" for r in riesgos[:1]]
+    lineas += [
+        "",
+        "Si apruebas, sigo con todo sin volver a interrumpirte y al terminar te",
+        f"cuento qué cambié. Si prefieres ir a la segura, pídeselo al {CONTACTO}:",
+        "",
+        pedido_para_woob(etiqueta, objetivo),
     ]
     return "\n".join(lineas)
 
@@ -604,10 +696,11 @@ def mensaje_prohibido(etiqueta, objetivo, riesgos):
     lineas += [
         "",
         f"Esto no se puede aceptar ni saltar: tiene que hacerlo el {CONTACTO}.",
-        "Escríbeles qué querías borrar y por qué, y ellos lo revisan.",
         "",
         "Si lo que necesitas es cambiar o reemplazar algo en vez de borrarlo, "
         "eso sí se puede: pídelo así.",
+        "",
+        pedido_para_woob(etiqueta, objetivo),
     ]
     return "\n".join(lineas)
 
@@ -667,9 +760,14 @@ def main():
         anotar(session_id, clave, objetivo)
         sys.exit(0)
 
-    # Ya aprobaron este pedido: se trabaja sin interrumpir.
-    if estado(session_id).get("aprobado"):
+    actual = estado(session_id)
+    es_bd = clave in ZONAS_BD
+
+    # Cada categoría interrumpe una sola vez en toda la conversación.
+    if actual.get("db_avisado" if es_bd else "general_avisado"):
         sys.exit(0)
+
+    razon = mensaje_base_de_datos(objetivo) if es_bd else mensaje(etiqueta, objetivo, riesgos)
 
     print(
         json.dumps(
@@ -677,7 +775,7 @@ def main():
                 "hookSpecificOutput": {
                     "hookEventName": "PreToolUse",
                     "permissionDecision": "ask",
-                    "permissionDecisionReason": mensaje(etiqueta, objetivo, riesgos),
+                    "permissionDecisionReason": razon,
                 }
             }
         )

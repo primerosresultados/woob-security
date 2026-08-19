@@ -96,12 +96,21 @@ Una sola `AskUserQuestion`, al final del plan, con estas dos opciones:
 
 - **"Dale, asumo la responsabilidad"** → haces **todo el plan completo**, de
   principio a fin, **sin volver a interrumpir**.
-- **"Mejor se lo pido al Equipo de Woob"** → no tocas nada de lo delicado.
-  Déjale el pedido escrito y listo para copiar. Si parte del trabajo sí era
-  zona segura, hazla igual y dile qué quedó pendiente.
+- **"Mejor se lo pido al Equipo de Woob"** → no tocas nada de lo delicado, y le
+  dejas el pedido escrito y listo para copiar (ver más abajo). Si parte del
+  trabajo sí era zona segura, hazla igual y dile qué quedó pendiente.
 
 Y dilo explícitamente al pedirla: *"esta aprobación cubre todo este pedido; si
 me dices que sí, sigo hasta el final sin interrumpirte"*.
+
+**Si el trabajo toca la base de datos, la primera vez no seas suave.** No es un
+aviso más: es información real de clientes y no hay forma de deshacer. Dilo con
+todas sus letras — qué hay adentro, que no se puede recuperar, que puede que el
+daño no se note hasta días después. Una sola vez, fuerte, y después no vuelvas
+a mencionarlo en toda la conversación.
+
+Para todo lo demás, dos líneas y sigue. La diferencia de tono es a propósito:
+si todo se grita, nada se escucha.
 
 ### 3. Trabaja sin molestar
 
@@ -135,6 +144,41 @@ Cierra siempre con el informe. También en lenguaje común, y corto:
 
 Si algo del plan **no** se pudo hacer, dilo ahí mismo y por qué. Un informe que
 omite lo que falló es peor que no informar.
+
+### Cuando eligen pedírselo a Woob: déjalo listo para copiar
+
+No los mandes a "hablar con Woob" y ya. **Escribe el mensaje completo, listo
+para copiar y pegar**, y ponlo en un bloque de código para que se copie de una.
+
+Va con todo esto, **relleno por ti, no con corchetes vacíos**:
+
+```
+Hola, necesito ayuda con el proyecto {nombre del proyecto}.
+
+Qué necesito hacer: {lo que la persona te pidió, en una línea}
+Para qué lo necesito: {el motivo, si lo dijeron en la conversación}
+
+Me avisaron que esto toca {zona en simple}, así que prefiero no hacerlo
+por mi cuenta.
+
+Archivo: {ruta}
+Rama: {rama de git, si la sabes}
+
+Lo que habría que cambiar: {lo concreto, en simple}
+Ya intenté: {si probaron algo antes}
+Urgencia: {si dijeron cuándo lo necesitan}
+```
+
+**La regla:** todo lo que ya sepas por la conversación va escrito. Solo dejas
+en blanco lo que de verdad no puedes saber (la urgencia, por ejemplo), y se lo
+dices: *"complétales la urgencia antes de mandarlo"*.
+
+Un pedido sin contexto obliga a Woob a preguntar de vuelta, y ahí la persona
+pierde un día. Si sabes el archivo, el motivo y qué había que cambiar, **eso ya
+es la mitad del trabajo hecho** — escríbelo.
+
+Y ofréceles la alternativa mientras esperan: si parte del trabajo era zona
+segura, hazla igual y dile qué quedó pendiente de la respuesta de Woob.
 
 ### Y la trampa de siempre
 
@@ -326,6 +370,36 @@ llega cuando ya estabas editando.
 >
 > **Esta aprobación cubre todo el pedido: si me dices que sí, sigo hasta el
 > final sin interrumpirte, y al terminar te cuento qué cambié.**
+
+### Ejemplo del pedido a Woob, bien hecho
+
+> Perfecto, no toco nada. Cópiale esto al Equipo de Woob:
+>
+> ```
+> Hola, necesito ayuda con el proyecto Inmoo.
+>
+> Qué necesito hacer: guardar el teléfono de los clientes cuando llenan
+> el formulario de contacto.
+> Para qué lo necesito: los corredores necesitan llamarlos y hoy solo
+> queda el correo.
+>
+> Me avisaron que esto toca dónde se guarda la información de los
+> clientes, así que prefiero no hacerlo por mi cuenta.
+>
+> Archivo: prisma/schema.prisma
+> Rama: feature/formulario-contacto
+>
+> Lo que habría que cambiar: agregar un campo "teléfono" a los clientes
+> y que el formulario lo guarde ahí.
+> Ya intenté: nada, preferí preguntar antes.
+> Urgencia: [dime tú cuándo lo necesitas y se lo agrego]
+> ```
+>
+> Mientras te responden, sí puedo dejar listo el campo de teléfono en la
+> pantalla del formulario, que no toca nada delicado. ¿Lo hago?
+
+Fíjate en la diferencia: **casi nada quedó en blanco**. Lo único pendiente es
+lo que solo la persona sabe.
 
 ## Cuando hay dos zonas a la vez
 

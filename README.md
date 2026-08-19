@@ -216,8 +216,14 @@ rato, se acepta sin leer y es como si no existiera. Por eso el trato es otro —
 eso sale de la zona segura, qué puede salir mal, y cómo se vuelve atrás. Todo
 junto, en un mensaje.
 
-**2. Una aprobación, que cubre todo el pedido.** No vuelve a preguntar por cada
-archivo. La aprobación vale hasta el próximo mensaje de la persona.
+**2. Una aprobación, y no molesta más.** Hay exactamente **dos** interrupciones
+en toda la conversación:
+
+- La primera vez que se toca **la base de datos**: aviso duro, sin rodeos.
+- La primera vez que se toca **cualquier otra cosa** fuera de la zona segura:
+  dos líneas y sigue.
+
+Después de cada una, esa categoría no vuelve a interrumpir. Nunca.
 
 **3. Trabaja sin molestar.** Nada de recordar el riesgo a mitad de camino ni
 cerrar cada mensaje con una advertencia.
@@ -252,6 +258,69 @@ final sin interrumpirte, y al terminar te cuento qué cambié.
 
 El hook es el respaldo: si la skill no hizo el plan, él fuerza esa aprobación
 única igual, y después se calla hasta el próximo mensaje.
+
+## El aviso de base de datos es distinto a propósito
+
+Todo lo demás avisa en dos líneas. La base de datos, la primera vez, grita:
+
+```
+🛑  P A R A .   E S T Á S   T O C A N D O   L A   B A S E   D E   D A T O S .
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  supabase/migrations/0007_leads.sql
+
+  Ahí adentro está la información REAL de los clientes.
+  Nombres, teléfonos, correos, ventas, cobros. Todo lo que existe.
+
+  Esto no es tu computador. Es el sistema que están usando AHORA MISMO.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SI ESTO SALE MAL:
+
+  ✗  Se pierde información que NO se puede recuperar. No hay deshacer.
+  ✗  No existe un botón para volver atrás. No hay papelera.
+  ✗  Los clientes pierden sus datos, y se dan cuenta.
+  ✗  Puede que nadie note el daño hasta días después, cuando ya es tarde.
+```
+
+Y después de eso, silencio: no vuelve a mencionar la base de datos en toda la
+conversación. **Si todo se grita, nada se escucha** — por eso solo esto grita, y
+solo una vez.
+
+## Cuando eligen pedírselo a Woob
+
+No los manda a "hablar con Woob" y ya. Deja el mensaje **escrito y listo para
+copiar**, con el contexto ya puesto:
+
+```
+Hola, necesito ayuda con el proyecto Inmoo.
+
+Qué necesito hacer: guardar el teléfono de los clientes cuando llenan
+el formulario de contacto.
+Para qué lo necesito: los corredores necesitan llamarlos y hoy solo
+queda el correo.
+
+Me avisaron que esto toca dónde se guarda la información de los
+clientes, así que prefiero no hacerlo por mi cuenta.
+
+Archivo: prisma/schema.prisma
+Rama: feature/formulario-contacto
+
+Lo que habría que cambiar: agregar un campo "teléfono" a los clientes
+y que el formulario lo guarde ahí.
+Ya intenté: nada, preferí preguntar antes.
+Urgencia: [dime tú cuándo lo necesitas y se lo agrego]
+```
+
+El hook arma el esqueleto solo (proyecto, archivo, rama, zona). La skill rellena
+lo que sabe de la conversación: qué querían hacer, para qué, y qué había que
+cambiar. **Solo queda en blanco lo que únicamente la persona sabe.**
+
+Un pedido sin contexto obliga a Woob a preguntar de vuelta, y ahí se pierde un
+día. Y mientras esperan, si parte del trabajo era zona segura, la hace igual y
+avisa qué quedó pendiente.
 
 ## Lo que protege siempre, en cualquier nivel
 

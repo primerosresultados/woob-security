@@ -35,8 +35,10 @@ def correr(payload, nivel=None):
     razon, decision = salida["permissionDecisionReason"], salida["permissionDecision"]
     if decision == "deny":
         etiqueta = razon.split("Estabas por ")[1].split(" (")[0]
+    elif razon.startswith("🛑"):
+        etiqueta = "★ AVISO DURO DE BASE DE DATOS"
     else:
-        etiqueta = razon.split("porque estas tocando: ")[1].split(" (")[0]
+        etiqueta = razon.split("Vas a tocar ")[1].split(" (")[0]
     return (decision, etiqueta)
 
 
@@ -152,43 +154,47 @@ bloque("Comandos inofensivos: debe PASAR", [
     "gh pr list", "git log --oneline",
 ], comando, False)
 
-print("\n=== Una sola aprobación por pedido ===")
-S = "un-pedido"
+print("\n=== Base de datos: aviso duro, una sola vez ===")
+S = "sesion-bd"
 
 
-def uso(entrada):
-    """Simula que la herramienta se ejecutó tras aprobarse."""
+def uso(entrada, ses=None):
     correr({"hook_event_name": "PostToolUse", "tool_name": "Edit",
-            "session_id": S, "tool_input": {"file_path": entrada}})
+            "session_id": ses or S, "tool_input": {"file_path": entrada}})
 
 
-primera = archivo("supabase/migrations/0007.sql", S)
+primera_bd = archivo("supabase/migrations/0007.sql", S)
 uso("supabase/migrations/0007.sql")
-mismo_archivo = archivo("supabase/migrations/0007.sql", S)
-otro_archivo = archivo("supabase/migrations/0008.sql", S)
-otra_zona = archivo(".env", S)
-otra_zona2 = archivo("src/app/api/leads/route.ts", S)
+segunda_bd = archivo("supabase/migrations/0008.sql", S)
+otro_schema = archivo("prisma/schema.prisma", S)
+
+# La categoría "todo lo demás" tiene su propio aviso, corto, también una vez.
+primera_otra = archivo("src/app/api/leads/route.ts", S)
+uso("src/app/api/leads/route.ts")
+segunda_otra = archivo(".env", S)
+
 borrar_igual = comando("rm -rf src", S)
 
-# La bitácora se lee ANTES del próximo mensaje: sirve para el informe final.
-RUTA_ESTADO = os.path.join(tempfile.gettempdir(), "woob-guardrail-un-pedido.json")
+RUTA_ESTADO = os.path.join(tempfile.gettempdir(), "woob-guardrail-sesion-bd.json")
 try:
     BITACORA = json.load(open(RUTA_ESTADO, encoding="utf-8")).get("bitacora", [])
 except Exception:
     BITACORA = []
 
-# Mensaje nuevo de la persona: la aprobación anterior deja de valer.
+# Mensaje nuevo: no vuelve a molestar con lo ya avisado.
 correr({"hook_event_name": "UserPromptSubmit", "session_id": S, "tool_input": {}})
 tras_nuevo_pedido = archivo("supabase/migrations/0009.sql", S)
 
 for desc, val, esperado in [
-    ("pide aprobación la primera vez", primera is not None, True),
-    ("después no vuelve a preguntar por el mismo archivo", mismo_archivo is None, True),
-    ("ni por otro archivo de la misma zona", otro_archivo is None, True),
-    ("ni por OTRA zona distinta", otra_zona is None, True),
-    ("ni por el backend", otra_zona2 is None, True),
-    ("pero borrar sigue prohibido igual", borrar_igual and borrar_igual[0] == "deny", True),
-    ("con un mensaje nuevo, vuelve a pedir aprobación", tras_nuevo_pedido is not None, True),
+    ("la primera vez grita", primera_bd is not None
+     and "AVISO DURO" in primera_bd[1], True),
+    ("la segunda vez NO interrumpe", segunda_bd is None, True),
+    ("tampoco por el schema", otro_schema is None, True),
+    ("el resto tiene su propio aviso, corto", primera_otra is not None
+     and "AVISO DURO" not in primera_otra[1], True),
+    ("y tampoco se repite", segunda_otra is None, True),
+    ("borrar sigue prohibido igual", borrar_igual and borrar_igual[0] == "deny", True),
+    ("con un mensaje nuevo tampoco vuelve a molestar", tras_nuevo_pedido is None, True),
 ]:
     ok = val == esperado
     if not ok:
@@ -202,10 +208,29 @@ if not ok:
 print(f"  {'ok ' if ok else 'MAL'} queda registro de lo que se tocó: "
       f"{[b['que'] for b in BITACORA] or 'vacío'}")
 
-limpio = os.path.exists(RUTA_ESTADO)
-if limpio:
-    FALLOS.append("bitácora: no se limpió con el mensaje nuevo")
-print(f"  {'ok ' if not limpio else 'MAL'} se limpia con el mensaje siguiente")
+try:
+    despues = json.load(open(RUTA_ESTADO, encoding="utf-8")).get("bitacora", [])
+except Exception:
+    despues = ["?"]
+if despues:
+    FALLOS.append("bitácora: no se vació con el mensaje nuevo")
+print(f"  {'ok ' if not despues else 'MAL'} se vacía con el mensaje siguiente")
+
+print("\n=== El pedido a Woob viene listo para copiar ===")
+raw = subprocess.run([sys.executable, HOOK], input=json.dumps(
+    {"hook_event_name": "PreToolUse", "tool_name": "Edit", "session_id": "pedido",
+     "tool_input": {"file_path": "prisma/schema.prisma"}}),
+    capture_output=True, text=True).stdout
+texto = json.loads(raw)["hookSpecificOutput"]["permissionDecisionReason"]
+for desc, val in [
+    ("trae el bloque para copiar", "CÓPIALES ESTO TAL CUAL" in texto),
+    ("dice el archivo", "prisma/schema.prisma" in texto),
+    ("dice el proyecto", "necesito ayuda con el proyecto" in texto),
+    ("pide completar lo que falta", "entre corchetes" in texto),
+]:
+    if not val:
+        FALLOS.append(f"pedido a Woob: {desc}")
+    print(f"  {'ok ' if val else 'MAL'} {desc}")
 
 print()
 if FALLOS:
